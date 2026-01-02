@@ -1,6 +1,8 @@
 package com.example.TraficIntelligence.model;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,14 +17,16 @@ public class User {
 
     private String email;
     private String password;
-    // private String role;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     public User(){}
 
-    public User(String email, String password){
+    public User(String email, String password, Role role){
         this.email = email;
         this.password = password;
-        // this.role = role;
+        this.role = role;
     }
 
     public Long getId(){ return id; }
@@ -34,7 +38,7 @@ public class User {
     public String getPassword(){ return password;}
     public void setPassword(String password){ this.password = password; }
     
-    // public String getRole(){ return role; }
-    // public void setRole(String role) { this.role = role; }
+    public Role getRole(){ return role; }
+    public void setRole(Role role) { this.role = role; }
 
 }

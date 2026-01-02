@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [role, setRole] = useState("CUSTOMER");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function Register() {
             const response = await fetch("http://localhost:8080/api/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email, password ,role })
             });
 
             if (!response.ok) {
@@ -30,7 +31,6 @@ export default function Register() {
                 throw new Error(message || "Registration failed");
             }
 
-            // ✅ Success → go to login
             navigate("/");
         } catch (err) {
             setError(err.message);
@@ -95,6 +95,19 @@ export default function Register() {
                         placeholder="Confirm your password"
                         className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
                     />
+                </div>
+
+                <div className="mb-4">
+                    <label htmlFor="role" className="block text-gray-700 font-medium mb-2"> Role </label>
+                    <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md"
+                        >
+                        <option value="CUSTOMER">Customer</option>
+                        <option value="DRIVER">Driver</option>
+                        <option value="FLEET_MANAGER">Fleet Manager</option>
+                    </select>
                 </div>
 
                 <button

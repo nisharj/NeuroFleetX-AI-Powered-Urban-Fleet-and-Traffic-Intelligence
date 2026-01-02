@@ -17,7 +17,28 @@ export default function Login(){
         });
 
         if(response.ok){
-            navigate("/dashboard");
+            const data = await response.json();
+
+            localStorage.setItem("email", data.email);
+            localStorage.setItem("role", data.role);
+            localStorage.setItem("token", data.Token);
+
+            switch (data.role) {
+                case "ADMIN":
+                    navigate("/admin");
+                    break;
+                case "FLEET_MANAGER":
+                    navigate("/fleet");
+                    break;
+                case "DRIVER":
+                    navigate("/driver");
+                    break;
+                case "CUSTOMER":
+                    navigate("/customer");
+                    break;
+                default:
+                    navigate("/");
+            }
         }
         else{
             alert("Invalid credentials");

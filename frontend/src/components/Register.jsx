@@ -13,7 +13,7 @@ export default function Register() {
         e.preventDefault();
         setError("");
 
-        // 🔒 Frontend validation
+        
         if (password !== confirmPassword) {
             setError("Passwords do not match");
             return;

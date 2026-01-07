@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import Register from "./Register";
 
 export default function Login(){
     const [email, setEmail] = useState("");
@@ -12,16 +11,18 @@ export default function Login(){
 
         const response = await fetch("http://localhost:8080/api/auth/login",{
             method: "POST",
-            headers:{"Content-Type": "application/json"},
+            headers:{
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${localStorage.getItem("token")}`
+            },
             body: JSON.stringify({email, password})
         });
 
         if(response.ok){
             const data = await response.json();
 
-            localStorage.setItem("email", data.email);
             localStorage.setItem("role", data.role);
-            localStorage.setItem("token", data.Token);
+            localStorage.setItem("token", data.token);
 
             switch (data.role) {
                 case "ADMIN":

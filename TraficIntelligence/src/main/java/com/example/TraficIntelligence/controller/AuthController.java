@@ -16,13 +16,17 @@ import com.example.TraficIntelligence.model.Role;
 import com.example.TraficIntelligence.model.User;
 import com.example.TraficIntelligence.repository.UserRepository;
 
+import com.example.TraficIntelligence.util.JwtUtil;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "http://localhost:5173")
 public class AuthController {
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-    public AuthController(UserRepository userRepository) {
+    public AuthController(JwtUtil jwtUtil, UserRepository userRepository) {
+        this.jwtUtil = jwtUtil;
         this.userRepository = userRepository;
     }
 
@@ -38,8 +42,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        String token = jwtUtil.generateToken(
+            user.getEmail(),
+            user.getRole()
+        );
+
         return ResponseEntity.ok(Map.of(
-            "email", user.getEmail(),
+            "token", token,
             "role", user.getRole()
         ));
     }

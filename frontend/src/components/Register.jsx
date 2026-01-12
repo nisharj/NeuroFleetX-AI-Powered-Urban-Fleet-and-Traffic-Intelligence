@@ -6,16 +6,42 @@ export default function Register() {
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("CUSTOMER");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [error, setError] = useState("");
+    const [apiError, setApiError] = useState("");
+    const [fieldErrors, setFieldErrors] = useState({}); 
+    
     const navigate = useNavigate();
+
+    const isValidEmail = (email) => {
+        return /\S+@\S+\.\S+/.test(email);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError("");
+        setApiError("");
+        setFieldErrors({}); 
 
+        const errors = {};
+
+        if (!email.trim()) {
+            errors.email = "Email is required";
+        } else if (!isValidEmail(email)) {
+            errors.email = "Please enter a valid email address";
+        }
+
+        if (!password) {
+            errors.password = "Password is required";
+        } else if (password.length < 6) {
+            errors.password = "Password must be at least 6 characters";
+        }
+
+        if (!confirmPassword) {
+            errors.confirmPassword = "Please confirm your password";
+        } else if (password !== confirmPassword) {
+            errors.confirmPassword = "Passwords do not match";
+        }
         
-        if (password !== confirmPassword) {
-            setError("Passwords do not match");
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
             return;
         }
 
@@ -23,7 +49,7 @@ export default function Register() {
             const response = await fetch("http://localhost:8080/api/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password ,role })
+                body: JSON.stringify({ email, password, role })
             });
 
             if (!response.ok) {
@@ -33,7 +59,7 @@ export default function Register() {
 
             navigate("/");
         } catch (err) {
-            setError(err.message);
+            setApiError(err.message);
         }
     };
 
@@ -43,13 +69,14 @@ export default function Register() {
                 onSubmit={handleSubmit}
                 className="bg-white p-6 rounded shadow-md w-full max-w-sm"
                 aria-label="Register Form"
+                noValidate
             >
-                <h2 className="text-xl text-center font-bold mb-6">Register</h2>
+                <h2 className="text-xl text-center font-bold mb-6">NeuroFleetX</h2>
 
-                {error && (
-                    <p className="text-red-600 text-sm mb-4 text-center">
-                        {error}
-                    </p>
+                {apiError && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm text-center">
+                        {apiError}
+                    </div>
                 )}
 
                 <div className="mb-4">
@@ -59,12 +86,20 @@ export default function Register() {
                     <input
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            if (fieldErrors.email) setFieldErrors({...fieldErrors, email: ""});
+                        }}
                         autoComplete="email"
                         placeholder="Enter your email"
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                            fieldErrors.email ? "border-red-500" : "border-gray-300"
+                        }`}
                     />
+                    
+                    {fieldErrors.email && (
+                        <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>
+                    )}
                 </div>
 
                 <div className="mb-4">
@@ -74,12 +109,20 @@ export default function Register() {
                     <input
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
+                        onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (fieldErrors.password) setFieldErrors({...fieldErrors, password: ""});
+                        }}
                         autoComplete="new-password"
                         placeholder="Enter your password"
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                            fieldErrors.password ? "border-red-500" : "border-gray-300"
+                        }`}
                     />
+                     
+                    {fieldErrors.password && (
+                        <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
+                    )}
                 </div>
 
                 <div className="mb-4">
@@ -89,12 +132,20 @@ export default function Register() {
                     <input
                         type="password"
                         value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
+                        onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            if (fieldErrors.confirmPassword) setFieldErrors({...fieldErrors, confirmPassword: ""});
+                        }}
                         autoComplete="new-password"
                         placeholder="Confirm your password"
-                        className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 ${
+                            fieldErrors.confirmPassword ? "border-red-500" : "border-gray-300"
+                        }`}
                     />
+                    
+                    {fieldErrors.confirmPassword && (
+                        <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>
+                    )}
                 </div>
 
                 <div className="mb-4">
@@ -103,7 +154,7 @@ export default function Register() {
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
                         className="w-full px-3 py-2 border rounded-md"
-                        >
+                    >
                         <option value="CUSTOMER">Customer</option>
                         <option value="DRIVER">Driver</option>
                         <option value="FLEET_MANAGER">Fleet Manager</option>

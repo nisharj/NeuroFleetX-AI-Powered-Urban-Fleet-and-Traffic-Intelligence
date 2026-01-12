@@ -4,11 +4,12 @@ import Login from "./components/Login.jsx"
 import Register from "./components/Register.jsx"
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-import AdminDashboard from "./components/AdminDashboard.jsx";
-import DriverDashboard from "./components/DriverDashboard.jsx";
-import CustomerDashboard from "./components/CustomerDashboard.jsx";
-import FleetDashboard from "./components/FleetDashboard.jsx";
+import AdminDashboard from "./components/Dashboards/AdminDashboard.jsx";
+import DriverDashboard from "./components/Dashboards/DriverDashboard.jsx";
+import CustomerDashboard from "./components/Dashboards/CustomerDashboard.jsx";
+import FleetDashboard from "./components/Dashboards/FleetDashboard.jsx";
 
+import VehiclesPage from "./pages/VehiclesPage.jsx";
 function App() {
 
   return (
@@ -38,6 +39,12 @@ function App() {
         <Route path="/fleet" element={
           <ProtectedRoute allowedRoles={["FLEET_MANAGER"]}>
             <FleetDashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/vehicles" element={
+          <ProtectedRoute allowedRoles={["ADMIN","FLEET_MANAGER"]}>
+            <VehiclesPage />
           </ProtectedRoute>
         } />
         

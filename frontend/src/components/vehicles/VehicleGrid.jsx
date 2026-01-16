@@ -1,52 +1,51 @@
 import { useEffect, useState } from "react";
 import VehicleCard from "./VehicleCard";
+import { apiFetch } from "../../api/api";
 
 export default function VehicleGrid({ onEdit, onDelete, refresh }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-
-  // 🔹 NEW: filter state
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
 
-  const fetchVehicles = () => {
-    fetch("http://localhost:8080/api/fleet/vehicles", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`
+  const fetchVehicles = async () => {
+    try {
+      const res = await apiFetch("/api/fleet/vehicles");
+
+      if (!res || !res.ok) {
+        throw new Error("Failed to fetch vehicles");
       }
-    })
-      .then(res => res.json())
-      .then(data => {
-        setVehicles(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+
+      const data = await res.json();
+      setVehicles(data);
+    } catch (err) {
+      console.error("Failed to load vehicles:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchVehicles();
+
     const interval = setInterval(fetchVehicles, 5000);
     return () => clearInterval(interval);
   }, [refresh]);
 
-  const filteredVehicles = vehicles.filter(v => {
-    const statusMatch =
-      statusFilter === "ALL" || v.status === statusFilter;
+  const filteredVehicles = vehicles.filter((v) => {
+    const statusMatch = statusFilter === "ALL" || v.status === statusFilter;
 
     const typeMatch =
-      typeFilter === "ALL" ||
-      v.type?.toUpperCase() === typeFilter;
+      typeFilter === "ALL" || v.type?.toUpperCase() === typeFilter;
 
-    const searchMatch =
-      v.vehicleNumber
-        .toLowerCase()
-        .includes(search.toLowerCase());
+    const searchMatch = v.vehicleNumber
+      .toLowerCase()
+      .includes(search.toLowerCase());
 
     return statusMatch && typeMatch && searchMatch;
   });
-  
 
   if (loading) {
     return <p className="text-center text-gray-500">Loading vehicles...</p>;
@@ -56,8 +55,6 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
     <>
       {/* FILTER BAR */}
       <div className="flex flex-wrap gap-4 mb-6">
-
-        {/* Status Filter */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -69,7 +66,6 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
           <option value="MAINTENANCE">Maintenance</option>
         </select>
 
-        {/* Type Filter */}
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -81,7 +77,10 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
           <option value="HYBRID">Hybrid</option>
         </select>
 
-        <input type="text" placeholder="Search by vehicle number..." value={search}
+        <input
+          type="text"
+          placeholder="Search by vehicle number..."
+          value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-64"
         />
@@ -92,7 +91,7 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
         <p className="text-center text-gray-500">No vehicles match filters.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredVehicles.map(vehicle => (
+          {filteredVehicles.map((vehicle) => (
             <VehicleCard
               key={vehicle.id}
               vehicle={vehicle}

@@ -5,21 +5,22 @@ import ProfileDropdown from "./ProfileDropdown";
 export default function Topbar() {
   const role = localStorage.getItem("role");
 
+  {(role === "ADMIN" || role === "FLEET_MANAGER") && (
+    <Link to="/fleet/vehicles">Fleet Vehicles</Link>
+  )}
+
+
   return (
     <header className="bg-white shadow px-6 py-4">
       
-      {/* Top Row */}
       <div className="flex justify-between items-center">
         
-        {/* App Name */}
         <h1 className="text-xl font-bold text-blue-600">
           NeuroFleetX
         </h1>
 
-        {/* Navigation + Profile */}
         <div className="flex items-center gap-6">
           
-          {/* Role-based Navigation */}
           <nav className="flex gap-6 font-medium">
             {role === "ADMIN" && <Link to="/admin">Dashboard</Link>}
             {role === "FLEET_MANAGER" && <Link to="/fleet">Dashboard</Link>}
@@ -27,15 +28,13 @@ export default function Topbar() {
             {role === "CUSTOMER" && <Link to="/customer">Dashboard</Link>}
           </nav>
 
-          {/* Profile Dropdown */}
           <ProfileDropdown />
         </div>
       </div>
 
-      {/* Breadcrumb Row */}
-      <div className="mt-2">
+      {/* <div className="mt-2">
         <Breadcrumb />
-      </div>
+      </div> */}
 
     </header>
   );

@@ -12,7 +12,7 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         setFieldErrors({});
         setApiError("");
 
@@ -34,44 +34,44 @@ export default function Login() {
 
         try {
             const response = await fetch("http://localhost:8080/api/auth/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${localStorage.getItem("token") || ""}` 
-                },
-                body: JSON.stringify({ email, password })
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email, password })
             });
 
-            if (response.ok) {
-                const data = await response.json();
+            if (!response.ok) {
+            throw new Error("Invalid credentials");
+            }
 
-                localStorage.setItem("role", data.role);
-                localStorage.setItem("token", data.token);
-                localStorage.setItem("email", email);
+            const data = await response.json();
 
-                switch (data.role) {
-                    case "ADMIN":
-                        navigate("/admin");
-                        break;
-                    case "FLEET_MANAGER":
-                        navigate("/fleet");
-                        break;
-                    case "DRIVER":
-                        navigate("/driver");
-                        break;
-                    case "CUSTOMER":
-                        navigate("/customer");
-                        break;
-                    default:
-                        navigate("/");
-                }
-            } else {
-                setApiError("Invalid credentials");
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("email", data.email);
+            localStorage.setItem("role", data.role); // OK for now
+
+            switch (data.role) {
+            case "ADMIN":
+                navigate("/admin");
+                break;
+            case "FLEET_MANAGER":
+                navigate("/fleet");
+                break;
+            case "DRIVER":
+                navigate("/driver");
+                break;
+            case "CUSTOMER":
+                navigate("/customer");
+                break;
+            default:
+                navigate("/");
             }
         } catch (error) {
-            setApiError("Something went wrong. Please try again.");
+            setApiError(error.message || "Login failed. Please try again.");
         }
-    };
+        };
+
 
     return (
         <>

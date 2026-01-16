@@ -17,7 +17,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
   return (
     <div className="bg-white rounded-xl shadow hover:shadow-lg transition p-5 space-y-4 border">
 
-      {/* Header */}
       <div className="flex justify-between items-center">
         <h3 className="font-semibold text-lg tracking-wide">
           {vehicle.vehicleNumber}
@@ -29,7 +28,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
         </span>
       </div>
 
-      {/* Location */}
       <div className="flex items-center gap-2 text-sm text-gray-600">
         <FaMapMarkerAlt className="text-red-500" />
         <span>
@@ -37,7 +35,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
         </span>
       </div>
 
-      {/* Battery */}
       {vehicle.batteryLevel !== null && (
         <div>
           <div className="flex justify-between items-center text-sm mb-1">
@@ -56,7 +53,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
         </div>
       )}
 
-      {/* Fuel */}
       {vehicle.fuelLevel !== null && (
         <div>
           <div className="flex justify-between items-center text-sm mb-1">
@@ -75,7 +71,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
         </div>
       )}
 
-      {/* Speed */}
       <div className="flex justify-between items-center text-sm">
         <span className="flex items-center gap-2 text-gray-600">
           <FaTachometerAlt />
@@ -94,7 +89,6 @@ export default function VehicleCard({ vehicle, onEdit, onDelete }) {
         </span>
       </div>
 
-      {/* Actions */}
       <div className="flex justify-end gap-4 pt-3 border-t">
         {typeof onEdit === "function" && (
           <button

@@ -41,7 +41,6 @@ export default function ProfileDropdown() {
       {open && (
         <div className="absolute right-0 mt-3 w-64 bg-white rounded-lg shadow-lg border z-50">
           
-          {/* User Info */}
           <div className="p-4 border-b">
             <p className="text-sm font-semibold text-gray-800">
               {email} {/* ✅ Username */}
@@ -51,7 +50,6 @@ export default function ProfileDropdown() {
             </p>
           </div>
 
-          {/* Logout */}
           <button
             onClick={logout}
             className="w-full px-4 py-3 flex items-center gap-2 text-red-600 hover:bg-gray-100"

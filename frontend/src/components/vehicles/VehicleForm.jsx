@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiFetch } from "../../api/api";
 
 export default function VehicleForm({ selectedVehicle, onSuccess }) {
   const [form, setForm] = useState({
@@ -8,14 +9,13 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
     batteryLevel: "",
     fuelLevel: "",
     latitude: "",
-    longitude: ""
+    longitude: "",
   });
 
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Populate form when editing
   useEffect(() => {
     if (selectedVehicle) {
       setForm({
@@ -25,21 +25,19 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
         batteryLevel: selectedVehicle.batteryLevel ?? "",
         fuelLevel: selectedVehicle.fuelLevel ?? "",
         latitude: selectedVehicle.latitude ?? "",
-        longitude: selectedVehicle.longitude ?? ""
+        longitude: selectedVehicle.longitude ?? "",
       });
       setErrors({});
       setApiError("");
     }
   }, [selectedVehicle]);
 
-  // Handle input change
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: "" });
     setApiError("");
   };
 
-  // ✅ Client-side validation
   const validate = () => {
     const newErrors = {};
 
@@ -47,7 +45,10 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
       newErrors.vehicleNumber = "Vehicle number is required";
     }
 
-    if (form.batteryLevel !== "" && (form.batteryLevel < 0 || form.batteryLevel > 100)) {
+    if (
+      form.batteryLevel !== "" &&
+      (form.batteryLevel < 0 || form.batteryLevel > 100)
+    ) {
       newErrors.batteryLevel = "Battery must be between 0 and 100";
     }
 
@@ -67,7 +68,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -76,31 +76,28 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
     setLoading(true);
 
     const method = selectedVehicle ? "PUT" : "POST";
-    const url = selectedVehicle
-      ? `http://localhost:8080/api/fleet/vehicles/${selectedVehicle.id}`
-      : "http://localhost:8080/api/fleet/vehicles";
+    const endpoint = selectedVehicle
+      ? `/api/fleet/vehicles/${selectedVehicle.id}`
+      : "/api/fleet/vehicles";
 
     const body = {
       ...form,
       batteryLevel: form.batteryLevel === "" ? null : Number(form.batteryLevel),
       fuelLevel: form.fuelLevel === "" ? null : Number(form.fuelLevel),
       latitude: Number(form.latitude),
-      longitude: Number(form.longitude)
+      longitude: Number(form.longitude),
     };
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(endpoint, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
-      if (!res.ok) {
-        const message = await res.text();
-        throw new Error(message || "Failed to save vehicle");
+      // apiFetch already handles 401 → redirect
+      if (!res || !res.ok) {
+        const message = res ? await res.text() : "Request failed";
+        throw new Error(message);
       }
 
       onSuccess();
@@ -111,32 +108,31 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
         batteryLevel: "",
         fuelLevel: "",
         latitude: "",
-        longitude: ""
+        longitude: "",
       });
       setErrors({});
       setApiError("");
     } catch (err) {
-      setApiError(err.message);
+      setApiError(err.message || "Failed to save vehicle");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow mb-6">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-6 rounded-lg shadow mb-6"
+    >
       <h2 className="text-lg font-bold mb-4">
         {selectedVehicle ? "Update Vehicle" : "Add Vehicle"}
       </h2>
 
       {apiError && (
-        <p className="mb-4 text-red-600 text-sm font-medium">
-          {apiError}
-        </p>
+        <p className="mb-4 text-red-600 text-sm font-medium">{apiError}</p>
       )}
 
       <div className="grid grid-cols-2 gap-4">
-
-        {/* Vehicle Number */}
         <div>
           <input
             name="vehicleNumber"
@@ -150,7 +146,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           )}
         </div>
 
-        {/* Type */}
         <input
           name="type"
           placeholder="Type (EV / DIESEL / HYBRID)"
@@ -159,7 +154,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           className="border p-2 rounded"
         />
 
-        {/* Status */}
         <select
           name="status"
           value={form.status}
@@ -171,7 +165,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           <option>MAINTENANCE</option>
         </select>
 
-        {/* Battery */}
         <div>
           <input
             name="batteryLevel"
@@ -186,7 +179,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           )}
         </div>
 
-        {/* Fuel */}
         <div>
           <input
             name="fuelLevel"
@@ -201,7 +193,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           )}
         </div>
 
-        {/* Latitude */}
         <div>
           <input
             name="latitude"
@@ -217,7 +208,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
           )}
         </div>
 
-        {/* Longitude */}
         <div>
           <input
             name="longitude"
@@ -232,7 +222,6 @@ export default function VehicleForm({ selectedVehicle, onSuccess }) {
             <p className="text-red-500 text-xs mt-1">{errors.longitude}</p>
           )}
         </div>
-
       </div>
 
       <button

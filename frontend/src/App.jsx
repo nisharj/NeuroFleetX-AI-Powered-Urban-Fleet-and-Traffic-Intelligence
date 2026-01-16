@@ -10,6 +10,7 @@ import CustomerDashboard from "./components/Dashboards/CustomerDashboard.jsx";
 import FleetDashboard from "./components/Dashboards/FleetDashboard.jsx";
 
 import VehiclesPage from "./pages/VehiclesPage.jsx";
+import BookRidePage from "./pages/BookRidePage";
 function App() {
 
   return (
@@ -47,6 +48,15 @@ function App() {
             <VehiclesPage />
           </ProtectedRoute>
         } />
+
+        <Route
+          path="/customer/book"
+          element={
+            <ProtectedRoute allowedRoles={["CUSTOMER"]}>
+              <BookRidePage />
+            </ProtectedRoute>
+          }
+        />
         
       </Routes>
     </BrowserRouter>

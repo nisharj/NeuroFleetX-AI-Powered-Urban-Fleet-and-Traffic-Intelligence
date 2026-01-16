@@ -1,7 +1,8 @@
 import { useState } from "react";
-import DashboardLayout from "../components/layout/DashboardLayout";
+import DashboardLayout from "../components/Layout/DashboardLayout";
 import VehicleGrid from "../components/vehicles/VehicleGrid";
 import VehicleForm from "../components/vehicles/VehicleForm";
+import { apiFetch } from "../api/api";
 
 export default function VehiclesPage() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -14,15 +15,9 @@ export default function VehiclesPage() {
 
     if (!confirmDelete) return;
 
-    const res = await fetch(
-      `http://localhost:8080/api/fleet/vehicles/${id}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
-      }
-    );
+    const res = await apiFetch(`/api/fleet/vehicles/${id}`, {
+      method: "DELETE",
+    });
 
     if (res.ok) {
       setRefresh(!refresh);
@@ -31,10 +26,8 @@ export default function VehiclesPage() {
     }
   };
 
-
   return (
     <DashboardLayout title="Fleet Vehicles">
-      
       <VehicleForm
         selectedVehicle={selectedVehicle}
         onSuccess={() => {

@@ -21,6 +21,12 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    private Double avgRating;
+    private Integer totalRatings;
+    private Boolean approvedByAdmin;
+    private Boolean approvedByFleet;
+
+
     public User(){}
 
     public User(String email, String password, Role role){
@@ -40,5 +46,17 @@ public class User {
     
     public Role getRole(){ return role; }
     public void setRole(Role role) { this.role = role; }
+
+    public Double getAvgRating(){ return avgRating;}
+    public void setAvgRating(Double avgRating){ this.avgRating = avgRating; }
+
+    public Integer getTotalRatings(){ return totalRatings; }
+    public void setTotalRatings(Integer totalRatings) { this.totalRatings = totalRatings; }
+
+    public Boolean getApprovedByAdmin(){ return approvedByAdmin;}
+    public void setApprovedByAdmin(Boolean approvedByAdmin){ this.approvedByAdmin = approvedByAdmin; }
+    
+    public Boolean getApprovedByFleet(){ return approvedByFleet;}
+    public void setApprovedByFleet(Boolean approvedByFleet){ this.approvedByFleet = approvedByFleet; }
 
 }

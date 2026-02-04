@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,7 @@ public class BookingService {
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
 
+    
     /**
      * ✅ Create booking
      * - Rental: CONFIRMED + vehicle locked
@@ -612,5 +615,47 @@ public class BookingService {
 
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
+    }
+
+    @Transactional
+    @Scheduled(fixedRate = 60000) // every 1 minute
+    public void autoExpireBookings() {
+
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
+
+        List<Booking> expiredList = bookingRepository.findBookingsToExpire(cutoff);
+
+        for (Booking booking : expiredList) {
+
+            // ignore already cancelled/completed just in case
+            if (booking.getStatus() == Booking.BookingStatus.COMPLETED ||
+                booking.getStatus().name().startsWith("CANCELLED")) {
+                continue;
+            }
+
+            booking.setStatus(Booking.BookingStatus.EXPIRED);
+            booking.setCancelledAt(LocalDateTime.now());
+            booking.setCancelledBy("SYSTEM");
+            booking.setCancellationReason("Expired (not started within 24h)");
+
+            // ✅ free vehicle if assigned
+            if (booking.getDriver() != null && booking.getDriver().getVehicle() != null) {
+                Vehicle v = booking.getDriver().getVehicle();
+                v.setStatus(Vehicle.VehicleStatus.AVAILABLE);
+                vehicleRepository.save(v);
+            }
+
+            bookingRepository.save(booking);
+
+            // optional websocket notify
+            try {
+                BookingDTO dto = convertToDTO(booking);
+                messagingTemplate.convertAndSend("/topic/customer/" + booking.getUser().getId(), dto);
+            } catch (Exception ignored) {}
+        }
+
+        if (!expiredList.isEmpty()) {
+            logger.info("Auto-expired {} bookings", expiredList.size());
+        }
     }
 }

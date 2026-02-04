@@ -1,0 +1,296 @@
+{
+  "info": {
+    "name": "NeuroFleetX Ride Lifecycle API",
+    "description": "Complete Uber/Ola-style ride lifecycle testing collection",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Driver",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8080/api/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Driver\",\n  \"email\": \"driver@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543210\",\n  \"role\": \"driver\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8080/api/auth/register",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Customer\",\n  \"email\": \"customer@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"9876543211\",\n  \"role\": \"customer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:8080/api/auth/login",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"driver@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "tests": "if (pm.response.code === 200) {\n  var data = pm.response.json();\n  pm.environment.set('jwt_token', data.token);\n  pm.environment.set('user_id', data.userId);\n}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Driver Endpoints",
+      "item": [
+        {
+          "name": "Get Pending Rides",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/pending?vehicleType=sedan",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Accept Ride",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/accept",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "tests": "if (pm.response.code === 200) {\n  var data = pm.response.json();\n  pm.environment.set('booking_id', data.bookingId);\n}"
+          }
+        },
+        {
+          "name": "Driver Arrived at Pickup",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/arrived",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Start Ride",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/start",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Complete Ride",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/complete?finalLat=40.7614&finalLng=-73.9776",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get Active Ride",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/active",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Cancel Ride",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/cancel",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Engine trouble, need to stop for repair\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Driver History",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/driver/history",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer Endpoints",
+      "item": [
+        {
+          "name": "Get Active Ride",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/customer/active",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/customer/history",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "Cancel Ride",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/customer-cancel",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Urgent work came up, cannot go now\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Scenarios",
+      "item": [
+        {
+          "name": "Complete Ride Lifecycle",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:8080/api/rides/pending?vehicleType=sedan",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "description": "Step 1: Get pending rides as driver"
+          }
+        },
+        {
+          "name": "Race Condition Test",
+          "request": {
+            "method": "PUT",
+            "url": "http://localhost:8080/api/rides/{{booking_id}}/accept",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}"
+              }
+            ],
+            "description": "Test: Multiple drivers try to accept same ride. Only first succeeds, others get 409 or error"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "booking_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

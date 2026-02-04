@@ -1,0 +1,88 @@
+# ============================================
+# NEUROFLEETX - GITIGNORE
+# ============================================
+
+# ============================================
+# SECURITY - SENSITIVE FILES (NEVER COMMIT!)
+# ============================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.jks
+secrets/
+credentials/
+
+# ============================================
+# BACKEND - JAVA/MAVEN
+# ============================================
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.ctxt
+.mtj.tmp/
+hs_err_pid*
+
+# ============================================
+# FRONTEND - NODE/REACT
+# ============================================
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.env
+frontend/.env.local
+*.local
+
+# ============================================
+# IDE FILES
+# ============================================
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+
+# ============================================
+# OS FILES
+# ============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================
+# DATABASE
+# ============================================
+*.sql.backup
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# LOGS
+# ============================================
+*.log
+logs/
+*.log.*
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+*.tmp
+*.temp
+*.bak
+*.cache

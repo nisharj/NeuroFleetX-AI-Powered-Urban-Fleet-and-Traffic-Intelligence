@@ -268,7 +268,7 @@ public class DriverService {
 
     private String generateVehicleCode() {
         long count = vehicleRepository.count() + 1;
-        return String.format("VH-%04d", count);
+        return "VH-%04d".formatted(count);
     }
 
     // ===================== Response Class =====================

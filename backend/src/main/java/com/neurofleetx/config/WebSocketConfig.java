@@ -51,8 +51,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             java.util.Map<String, Object> attributes) throws Exception {
                         try {
                             // Extract token from query parameter and store in session attributes
-                            if (request instanceof org.springframework.http.server.ServletServerHttpRequest) {
-                                String query = ((org.springframework.http.server.ServletServerHttpRequest) request)
+                            if (request instanceof org.springframework.http.server.ServletServerHttpRequest httpRequest) {
+                                String query = httpRequest
                                         .getServletRequest().getQueryString();
                                 if (query != null && query.contains("token=")) {
                                     String token = query.split("token=")[1].split("&")[0];
@@ -97,8 +97,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     // Try token native header (from connectHeaders)
                     else if (accessor.getNativeHeader("Authorization") != null) {
                         java.util.List<String> authHeaders = accessor.getNativeHeader("Authorization");
-                        if (!authHeaders.isEmpty() && authHeaders.get(0).startsWith("Bearer ")) {
-                            token = authHeaders.get(0).substring(7);
+                        if (!authHeaders.isEmpty() && authHeaders.getFirst().startsWith("Bearer ")) {
+                            token = authHeaders.getFirst().substring(7);
                         }
                     }
                     // Try to get from session attributes (populated by handshake interceptor)

@@ -598,7 +598,7 @@ public class BookingService {
     private String generateBookingCode() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         long count = bookingRepository.count() + 1;
-        return String.format("BK-%s-%04d", date, count);
+        return "BK-%s-%04d".formatted(date, count);
     }
 
     private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {

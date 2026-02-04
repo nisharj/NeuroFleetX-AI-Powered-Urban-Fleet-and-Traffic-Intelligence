@@ -54,7 +54,7 @@ public class AnalyticsService {
         // random data)
         // A proper implementation would query bookings by hour.
         for (int hour = 0; hour < 24; hour += 4) {
-            String label = String.format("%02d:00", hour);
+            String label = "%02d:00".formatted(hour);
             BigDecimal revenue = BigDecimal.ZERO;
             dataPoints.add(new RevenueChartDTO.DataPoint(label, revenue));
         }

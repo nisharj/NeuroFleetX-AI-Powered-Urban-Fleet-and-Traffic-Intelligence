@@ -13,7 +13,7 @@ function DriverDashboard({ user, onLogout }) {
   const [driverProfile, setDriverProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  // ✅ Fetch real profile from backend
+  // ✅ Fetch driver profile
   const fetchDriverProfile = async () => {
     try {
       setProfileLoading(true);
@@ -27,17 +27,20 @@ function DriverDashboard({ user, onLogout }) {
     }
   };
 
-  // ✅ Load profile only when opening vehicle tab
+  // ✅ Fetch profile when Vehicle tab opens
   useEffect(() => {
     if (view === "vehicle") {
       fetchDriverProfile();
     }
   }, [view]);
 
-  const isApproved =
-    driverProfile?.approvalStatus === "APPROVED" ||
-    driverProfile?.detailsSubmitted ||
-    !!driverProfile?.vehicle;
+  // ✅ (optional) preload profile once at start
+  useEffect(() => {
+    fetchDriverProfile();
+  }, []);
+
+  // ✅ Approved only if backend marks approved
+  const isApproved = driverProfile?.approvalStatus === "APPROVED";
 
   return (
     <div className="app-container">
@@ -61,18 +64,21 @@ function DriverDashboard({ user, onLogout }) {
           >
             Overview
           </button>
+
           <button
             className={`driver-tab ${view === "trips" ? "active" : ""}`}
             onClick={() => setView("trips")}
           >
             My Trips
           </button>
+
           <button
             className={`driver-tab ${view === "vehicle" ? "active" : ""}`}
             onClick={() => setView("vehicle")}
           >
             Vehicle Details
           </button>
+
           <button
             className={`driver-tab ${view === "earnings" ? "active" : ""}`}
             onClick={() => setView("earnings")}
@@ -84,12 +90,16 @@ function DriverDashboard({ user, onLogout }) {
         {/* Overview */}
         {view === "overview" && (
           <>
-            <DriverStats userId={user.id} />
+            <DriverStats userId={user?.id} />
+
             <div className="mt-xl">
-              <CurrentRide userId={user.id} />
+              {/* ✅ Current active ride for THIS DRIVER */}
+              <CurrentRide />
             </div>
+
             <div className="mt-xl">
-              <PendingRideRequests userId={user.id} />
+              {/* ✅ Pending requests filtered by driver vehicle type */}
+              <PendingRideRequests userId={user?.id} />
             </div>
           </>
         )}
@@ -99,14 +109,12 @@ function DriverDashboard({ user, onLogout }) {
           <div className="driver-section-card">
             <h3 className="driver-section-title">My Trips</h3>
             <div className="driver-section-content empty">
-              <p className="text-secondary">
-                Trip history will be displayed here
-              </p>
+              <p className="text-secondary">Trip history will be displayed here</p>
             </div>
           </div>
         )}
 
-        {/* ✅ Vehicle */}
+        {/* Vehicle */}
         {view === "vehicle" && (
           <div className="animate-fadeIn space-y-lg">
             {profileLoading ? (
@@ -116,14 +124,12 @@ function DriverDashboard({ user, onLogout }) {
               </div>
             ) : (
               <>
-                {/* ✅ Approved drivers should NEVER see fresh form */}
                 {isApproved ? (
                   <DriverProfileCard />
                 ) : (
                   <DriverVehicleDetailsForm
                     user={user}
                     onSubmitSuccess={() => {
-                      // ✅ after submitting, reload profile
                       fetchDriverProfile();
                     }}
                   />

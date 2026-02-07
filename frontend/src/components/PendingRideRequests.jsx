@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { showToast } from "./Toast";
@@ -9,103 +9,96 @@ import api from "../services/api";
 function PendingRideRequests({ userId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [driverVehicleType, setDriverVehicleType] = useState(null);
   const [driverProfile, setDriverProfile] = useState(null);
 
   const stompRef = useRef(null);
   const subsRef = useRef([]);
 
-  useEffect(() => {
-    let mounted = true;
+  const [activeModalRequest, setActiveModalRequest] = useState(null);
 
-    const addRequestSafe = (payload, vehicleType) => {
-      if (!payload?.id) return;
+  // ✅ Helpers
+  const isPendingLike = (status) => ["PENDING", "BROADCASTED"].includes(status);
 
-      // Only allow pending-like bookings
-      const allowed = ["PENDING", "BROADCASTED"];
-      if (payload.status && !allowed.includes(payload.status)) return;
+  const addRequestSafe = useCallback((payload, vehicleType) => {
+    if (!payload?.id) return;
 
-      // Filter by requested vehicle type if needed
-      if (
-        vehicleType &&
-        payload.requestedVehicleType &&
-        payload.requestedVehicleType !== vehicleType
-      ) {
-        return;
-      }
+    if (payload.status && !isPendingLike(payload.status)) return;
 
-      setRequests((prev) => {
-        // prevent duplicates
-        const exists = prev.some((r) => r.id === payload.id);
-        if (exists) return prev;
-        return [payload, ...prev];
+    if (
+      vehicleType &&
+      payload.requestedVehicleType &&
+      payload.requestedVehicleType !== vehicleType
+    ) {
+      return;
+    }
+
+    setRequests((prev) => {
+      const exists = prev.some((r) => r.id === payload.id);
+      if (exists) return prev;
+      return [payload, ...prev];
+    });
+  }, []);
+
+  // ✅ Load driver profile
+  const fetchDriverProfile = useCallback(async () => {
+    const profile = await api
+      .get("/v1/driver/profile")
+      .then((r) => r.data)
+      .catch(() => null);
+
+    setDriverProfile(profile || null);
+
+    const vehicleType = profile?.vehicle?.type || null;
+    setDriverVehicleType(vehicleType);
+
+    return { profile, vehicleType };
+  }, []);
+
+  // ✅ Load pending requests
+  const fetchPendingRequests = useCallback(async (vehicleType) => {
+    if (!vehicleType) {
+      setRequests([]);
+      return;
+    }
+
+    const data = await bookingService.getPendingBookings(vehicleType);
+
+    const cleaned = (data || []).filter(
+      (b) => b && b.id && isPendingLike(b.status) && b.vehicleId == null,
+    );
+
+    setRequests(cleaned);
+  }, []);
+
+  // ✅ Setup websocket
+  const setupWebSocket = useCallback(
+    (vehicleType) => {
+      const backendBase =
+        window.location.hostname === "localhost"
+          ? `${window.location.protocol}//${window.location.hostname}:8080`
+          : window.location.origin;
+
+      const token = localStorage.getItem("authToken");
+
+      const wsUrl = token
+        ? `${backendBase}/api/ws?token=${encodeURIComponent(token)}`
+        : `${backendBase}/api/ws`;
+
+      const stompClient = new Client({
+        webSocketFactory: () => new SockJS(wsUrl),
+        connectHeaders: {
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+        reconnectDelay: 5000,
+        debug: () => {},
       });
-    };
 
-
-    const loadDriverAndRequests = async () => {
-      try {
-        setLoading(true);
-
-        // ✅ Load driver profile
-        const profile = await api
-          .get("/v1/driver/profile")
-          .then((r) => r.data)
-          .catch(() => null);
-
-        if (!mounted) return;
-
-        const vehicleType = profile?.vehicle?.type || null;
-        setDriverVehicleType(vehicleType);
-        setDriverProfile(profile || null);
-
-        // ✅ If driver has no vehicle configured
-        if (!vehicleType) {
-          setRequests([]);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Load pending bookings filtered server-side
-        const data = await bookingService.getPendingBookings(vehicleType);
-        if (!mounted) return;
-
-        // Keep only PENDING/BROADCASTED bookings
-        const cleaned = (data || []).filter(
-          (b) =>
-            b &&
-            b.id &&
-            ["PENDING", "BROADCASTED"].includes(b.status) &&
-            b.vehicleId == null
-        );
-
-        setRequests(cleaned);
-        setLoading(false);
-
-        // ✅ Setup STOMP client
-        const backendBase =
-          window.location.hostname === "localhost"
-            ? `${window.location.protocol}//${window.location.hostname}:8080`
-            : window.location.origin;
-
-        const token = localStorage.getItem("authToken");
-
-        const wsUrl = token
-          ? `${backendBase}/api/ws?token=${encodeURIComponent(token)}`
-          : `${backendBase}/api/ws`;
-
-        const stompClient = new Client({
-          webSocketFactory: () => new SockJS(wsUrl),
-          connectHeaders: {
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-          reconnectDelay: 5000,
-          debug: () => {},
-        });
-
-        stompClient.onConnect = () => {
-          // ✅ Subscribe global topic
-          const sub1 = stompClient.subscribe("/topic/ride-requests", (message) => {
+      stompClient.onConnect = () => {
+        const sub1 = stompClient.subscribe(
+          "/topic/ride-requests",
+          (message) => {
             try {
               const payload = JSON.parse(message.body);
               addRequestSafe(payload, vehicleType);
@@ -114,17 +107,19 @@ function PendingRideRequests({ userId }) {
                 `New ride request: ${payload?.pickupAddress || ""} → ${
                   payload?.dropAddress || ""
                 }`,
-                "info"
+                "info",
               );
             } catch (e) {
               console.error("Error parsing stomp message", e);
             }
-          });
+          },
+        );
 
-          subsRef.current.push(sub1);
+        subsRef.current.push(sub1);
 
-          // ✅ Subscribe vehicle-specific topic
-          const sub2 = stompClient.subscribe(`/topic/driver/${vehicleType}`, (message) => {
+        const sub2 = stompClient.subscribe(
+          `/topic/driver/${vehicleType}`,
+          (message) => {
             try {
               const payload = JSON.parse(message.body);
               addRequestSafe(payload, vehicleType);
@@ -133,54 +128,72 @@ function PendingRideRequests({ userId }) {
                 `New ${vehicleType} ride request: ${payload?.pickupAddress || ""} → ${
                   payload?.dropAddress || ""
                 }`,
-                "info"
+                "info",
               );
             } catch (e) {
               console.error("Error parsing stomp message", e);
             }
-          });
+          },
+        );
 
-          subsRef.current.push(sub2);
-        };
+        subsRef.current.push(sub2);
+      };
 
-        stompClient.onStompError = (frame) => {
-          console.error("STOMP error", frame);
-        };
+      stompClient.onStompError = (frame) => {
+        console.error("STOMP error", frame);
+      };
 
-        stompClient.activate();
-        stompRef.current = stompClient;
+      stompClient.activate();
+      stompRef.current = stompClient;
+    },
+    [addRequestSafe],
+  );
+
+  // ✅ Main loader
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const { vehicleType } = await fetchDriverProfile();
+        if (!mounted) return;
+
+        if (!vehicleType) {
+          setRequests([]);
+          setLoading(false);
+          return;
+        }
+
+        await fetchPendingRequests(vehicleType);
+        if (!mounted) return;
+
+        setupWebSocket(vehicleType);
       } catch (e) {
-        console.error("Failed to load driver profile or pending requests", e);
+        console.error("Failed to load pending rides", e);
+      } finally {
         if (mounted) setLoading(false);
       }
     };
 
-    loadDriverAndRequests();
+    load();
 
     return () => {
       mounted = false;
 
-      // ✅ cleanup subscriptions
       subsRef.current.forEach((sub) => {
         try {
           sub.unsubscribe();
-        } catch (e) {
-          console.error("Error unsubscribing", e);
-        }
+        } catch {}
       });
       subsRef.current = [];
 
-      // ✅ cleanup stomp
       try {
         stompRef.current?.deactivate();
-      } catch (e) {
-        console.error("Error deactivating STOMP", e);
-      }
+      } catch {}
     };
-  }, [userId]);
-
-
-  const [activeModalRequest, setActiveModalRequest] = useState(null);
+  }, [userId, fetchDriverProfile, fetchPendingRequests, setupWebSocket]);
 
   const openAcceptModal = (request) => {
     setActiveModalRequest(request);
@@ -194,22 +207,34 @@ function PendingRideRequests({ userId }) {
   const handleConfirmAccept = async (request) => {
     try {
       if (!driverProfile?.email) {
-        showToast("Driver profile missing. Please refresh or re-login.", "error");
+        showToast(
+          "Driver profile missing. Please refresh or re-login.",
+          "error",
+        );
         return;
       }
 
       if (driverProfile?.approvalStatus !== "APPROVED") {
-        showToast("Your driver profile is not approved to accept bookings.", "error");
+        showToast(
+          "Your driver profile is not approved to accept bookings.",
+          "error",
+        );
         return;
       }
 
       if (!driverProfile?.vehicle) {
-        showToast("No vehicle found on your profile. Please add vehicle details.", "error");
+        showToast(
+          "No vehicle found on your profile. Please add vehicle details.",
+          "error",
+        );
         return;
       }
 
       if (driverProfile.vehicle.status !== "AVAILABLE") {
-        showToast("Your vehicle is not available to accept rides. Free it first.", "error");
+        showToast(
+          `Your vehicle is not available (status: ${driverProfile.vehicle.status}). Complete current trip first.`,
+          "error",
+        );
         return;
       }
 
@@ -218,16 +243,24 @@ function PendingRideRequests({ userId }) {
       await bookingService.acceptBooking(
         request.id,
         acceptedAtIso,
-        driverProfile?.email
+        driverProfile?.email,
       );
 
       showToast("✅ Ride accepted — assigned to you", "success");
 
-      // remove accepted request
+      // ✅ Remove accepted request
       setRequests((prev) => prev.filter((r) => r.id !== request.id));
       closeModal();
+
+      // ✅ refresh profile + pending list
+      const { vehicleType } = await fetchDriverProfile();
+      await fetchPendingRequests(vehicleType);
+
+      // ✅ notify CurrentRide to refresh automatically
+      window.dispatchEvent(new Event("driverRideChanged"));
     } catch (error) {
       console.error("Error accepting ride:", error, error?.response?.data);
+
       const msg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
@@ -238,25 +271,31 @@ function PendingRideRequests({ userId }) {
     }
   };
 
-  // ✅ Reject Ride (optional backend support)
+  // ✅ Reject Ride
   const handleReject = async (requestId) => {
     try {
       await bookingService.rejectBooking(requestId);
       showToast("Ride rejected", "info");
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
+
+      // ✅ notify CurrentRide (in case ride changed)
+      window.dispatchEvent(new Event("driverRideChanged"));
     } catch (error) {
       console.error("Error rejecting ride:", error);
       showToast("Failed to reject ride", "error");
     }
   };
 
-  // ===================== UI =====================
+  // ================= UI =================
 
   if (loading) {
     return (
       <div className="driver-section-card">
         <h3 className="driver-section-title">Pending Ride Requests</h3>
-        <div className="driver-section-content skeleton" style={{ height: "60px" }}>
+        <div
+          className="driver-section-content skeleton"
+          style={{ height: "60px" }}
+        >
           <div className="skeleton-shimmer"></div>
         </div>
       </div>
@@ -272,7 +311,8 @@ function PendingRideRequests({ userId }) {
             <p className="text-secondary">No pending ride requests.</p>
           ) : (
             <p className="text-secondary">
-              No vehicle configured — submit your vehicle details to start receiving ride requests.
+              No vehicle configured — submit your vehicle details to start
+              receiving ride requests.
             </p>
           )}
         </div>
@@ -322,8 +362,12 @@ function PendingRideRequests({ userId }) {
                 </div>
 
                 <div className="request-info">
-                  <span className="request-fare">₹{request.totalCost}</span>
-                  <span className="request-distance">{request.distanceKm} km</span>
+                  <span className="request-fare">
+                    ₹{Number(request.totalCost || 0).toFixed(2)}
+                  </span>
+                  <span className="request-distance">
+                    {Number(request.distanceKm || 0).toFixed(2)} km
+                  </span>
                   <span className="badge badge-secondary ml-sm">
                     {request.requestedVehicleType || "-"}
                   </span>
@@ -350,7 +394,7 @@ function PendingRideRequests({ userId }) {
         </div>
       </div>
 
-      {/* ✅ Modal for confirming acceptance */}
+      {/* ✅ Modal */}
       {activeModalRequest && (
         <RideRequestModal
           request={activeModalRequest}

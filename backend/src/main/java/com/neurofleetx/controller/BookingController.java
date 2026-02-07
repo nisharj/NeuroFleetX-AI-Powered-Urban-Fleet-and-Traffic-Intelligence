@@ -64,12 +64,13 @@ public class BookingController {
     }
 
     /**
-     * ✅ Customer booking history
+     * ✅ Customer booking history (only their bookings)
      */
     @GetMapping("/bookings/user")
     public ResponseEntity<?> getUserBookings(Authentication authentication) {
         if (authentication == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Unauthorized"));
         }
 
         String userEmail = authentication.getName();
@@ -140,7 +141,8 @@ public class BookingController {
             }
 
             if (driverEmail == null || driverEmail.isBlank()) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized driver"));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized driver"));
             }
 
             LocalDateTime clientAcceptedAt = null;
@@ -179,7 +181,8 @@ public class BookingController {
     public ResponseEntity<?> arrived(@PathVariable Long bookingId, Authentication authentication) {
         try {
             if (authentication == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
             }
 
             String driverEmail = authentication.getName();
@@ -201,7 +204,8 @@ public class BookingController {
     public ResponseEntity<?> start(@PathVariable Long bookingId, Authentication authentication) {
         try {
             if (authentication == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
             }
 
             String driverEmail = authentication.getName();
@@ -223,7 +227,8 @@ public class BookingController {
     public ResponseEntity<?> complete(@PathVariable Long bookingId, Authentication authentication) {
         try {
             if (authentication == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Unauthorized"));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
             }
 
             String driverEmail = authentication.getName();
@@ -250,7 +255,10 @@ public class BookingController {
         try {
             String cancelledByRole = "ADMIN";
 
-            if (authentication != null && authentication.getAuthorities() != null && !authentication.getAuthorities().isEmpty()) {
+            if (authentication != null &&
+                    authentication.getAuthorities() != null &&
+                    !authentication.getAuthorities().isEmpty()) {
+
                 String authority = authentication.getAuthorities().iterator().next().getAuthority(); // eg ROLE_DRIVER
                 cancelledByRole = authority.replace("ROLE_", "");
             }
@@ -264,6 +272,38 @@ public class BookingController {
             logger.error("Error cancelling booking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * ✅ Driver current/active trip
+     * returns booking if driver has ACCEPTED/ARRIVED/STARTED ride
+     */
+    @GetMapping("/bookings/driver/active")
+    public ResponseEntity<?> getDriverActive(Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            String driverEmail = authentication.getName();
+            BookingDTO booking = bookingService.getDriverActiveRide(driverEmail);
+
+            // ✅ better response instead of NO_CONTENT
+            if (booking == null) {
+                return ResponseEntity.ok(null);
+            }
+
+            return ResponseEntity.ok(booking);
+
+        } catch (Exception e) {
+            logger.error("Error fetching driver active ride: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "error", e.getClass().getSimpleName(),
+                            "message", e.getMessage() != null ? e.getMessage() : "Failed to fetch active ride"
+                    ));
         }
     }
 }

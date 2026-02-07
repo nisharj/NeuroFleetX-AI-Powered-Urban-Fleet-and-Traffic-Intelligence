@@ -613,4 +613,36 @@ public class BookingService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }
+
+    public BookingDTO getDriverActiveRide(String driverEmail) {
+        if (driverEmail == null || driverEmail.isBlank()) {
+            return null;
+        }
+
+        User driver = userRepository.findByEmail(driverEmail)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Driver not found"
+                ));
+
+        Booking booking = bookingRepository.findActiveRideForDriver(driver.getId())
+                .orElse(null);
+
+        if (booking == null) return null;
+
+        // ✅ Extra filter (recommended) → only active statuses
+        List<Booking.BookingStatus> activeStatuses = List.of(
+                Booking.BookingStatus.ACCEPTED,
+                Booking.BookingStatus.ARRIVED,
+                Booking.BookingStatus.STARTED
+        );
+
+        if (!activeStatuses.contains(booking.getStatus())) {
+            return null;
+        }
+
+        return convertToDTO(booking);
+    }
+
+
 }

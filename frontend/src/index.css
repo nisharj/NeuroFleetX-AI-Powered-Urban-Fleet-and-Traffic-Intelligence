@@ -1,34 +1,6 @@
-<<<<<<< HEAD
 @import "tailwindcss";
-=======
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-/* Tailwind CSS Base Styles */
-/* Tailwind CSS v4 */
-@import "tailwindcss";
-
-/* ============================================
-   NEUROFLEETX DESIGN SYSTEM
-   Light Corporate Tech Theme
-   ============================================ */
-
-/* ============================================
-   1. CSS RESET & BASE STYLES
-   ============================================ */
-* {
-  margin-top: 0;
-  padding: 3px;
-  box-sizing: border-box;
-}
-
 
 :root {
-  /* Light Corporate Tech Color Palette */
-  --bg-porcelain: #FFFFFF;
-  --bg-ghost: #F4F7FE;
-  --bg-card-grey: #F4F5F7;
-
   /* Primary Brand */
   --primary-azure: #0052CC;
   --primary-azure-light: #E6EFFC;

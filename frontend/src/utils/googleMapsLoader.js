@@ -1,92 +1,90 @@
-import GOOGLE_MAPS_CONFIG from '../config/googleMaps';
-
-let isLoading = false;
-let isLoaded = false;
-const callbacks = [];
+import MAP_CONFIG from "../config/googleMaps";
 
 /**
- * Load Google Maps API script only once
- * @returns {Promise<void>}
+ * OpenStreetMap geocoding utilities
+ * Free and open-source, no API key required
  */
+
+/**
+ * Search for address using Nominatim (OpenStreetMap geocoding service)
+ * @param {string} query - Search query
+ * @returns {Promise<Array>} Array of results
+ */
+export const searchAddress = async (query) => {
+  if (!query || query.length < 3) {
+    return [];
+  }
+
+  try {
+    const response = await fetch(
+      `${MAP_CONFIG.geocoding.searchUrl}?q=${encodeURIComponent(query)}&format=json&limit=5`,
+      {
+        headers: {
+          "User-Agent": "NeuroFleetX",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Geocoding failed");
+    }
+
+    const data = await response.json();
+    return data.map((item) => ({
+      address: item.display_name,
+      lat: parseFloat(item.lat),
+      lng: parseFloat(item.lon),
+    }));
+  } catch (error) {
+    console.error("Address search failed:", error);
+    return [];
+  }
+};
+
+/**
+ * Reverse geocode coordinates to address
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @returns {Promise<string>} Address
+ */
+export const reverseGeocode = async (lat, lng) => {
+  try {
+    const response = await fetch(
+      `${MAP_CONFIG.geocoding.reverseUrl}?lat=${lat}&lon=${lng}&format=json`,
+      {
+        headers: {
+          "User-Agent": "NeuroFleetX",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Reverse geocoding failed");
+    }
+
+    const data = await response.json();
+    return data.display_name || "Selected location";
+  } catch (error) {
+    console.error("Reverse geocoding failed:", error);
+    return "Selected location";
+  }
+};
+
+// Legacy function for compatibility
 export const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    // Check if Google Maps is enabled and API key is valid
-    if (!GOOGLE_MAPS_CONFIG.enabled || !GOOGLE_MAPS_CONFIG.apiKey) {
-      console.warn('Google Maps API key not configured. Address autocomplete will be disabled.');
-      reject(new Error('Google Maps API key not configured'));
-      return;
-    }
-
-    // If already loaded, resolve immediately
-    if (isLoaded && window.google && window.google.maps) {
-      resolve();
-      return;
-    }
-
-    // If currently loading, add to callback queue
-    if (isLoading) {
-      callbacks.push({ resolve, reject });
-      return;
-    }
-
-    // Check if script already exists in DOM
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      // Script exists, wait for it to load
-      if (window.google && window.google.maps) {
-        isLoaded = true;
-        resolve();
-        return;
-      }
-      
-      existingScript.addEventListener('load', () => {
-        isLoaded = true;
-        resolve();
-        callbacks.forEach(cb => cb.resolve());
-        callbacks.length = 0;
-      });
-      
-      existingScript.addEventListener('error', (error) => {
-        reject(error);
-        callbacks.forEach(cb => cb.reject(error));
-        callbacks.length = 0;
-      });
-      return;
-    }
-
-    // Start loading
-    isLoading = true;
-    callbacks.push({ resolve, reject });
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_CONFIG.apiKey}&libraries=${GOOGLE_MAPS_CONFIG.libraries.join(',')}&language=${GOOGLE_MAPS_CONFIG.language}&region=${GOOGLE_MAPS_CONFIG.region}`;
-    script.async = true;
-    script.defer = true;
-
-    script.onload = () => {
-      isLoading = false;
-      isLoaded = true;
-      callbacks.forEach(cb => cb.resolve());
-      callbacks.length = 0;
-    };
-
-    script.onerror = (error) => {
-      isLoading = false;
-      console.error('Failed to load Google Maps API:', error);
-      callbacks.forEach(cb => cb.reject(error));
-      callbacks.length = 0;
-    };
-
-    document.head.appendChild(script);
+  return new Promise((resolve) => {
+    // OpenStreetMap doesn't need loading - resolve immediately
+    console.log("Using OpenStreetMap - no API loading required");
+    resolve();
   });
 };
 
 /**
- * Check if Google Maps API is loaded
+ * Check if maps are available (always true for OpenStreetMap)
  * @returns {boolean}
  */
 export const isGoogleMapsLoaded = () => {
-  return isLoaded && window.google && window.google.maps && window.google.maps.places;
+  return true;
 };
 
 export default loadGoogleMapsScript;

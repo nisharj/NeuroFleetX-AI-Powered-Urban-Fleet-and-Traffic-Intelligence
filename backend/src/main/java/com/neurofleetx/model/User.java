@@ -58,7 +58,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", length = 50)
-    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING_ACCOUNT_APPROVAL;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -84,10 +84,11 @@ public class User {
     }
 
     public enum ApprovalStatus {
-        PENDING, // Waiting for details submission
-        PENDING_APPROVAL, // Details submitted, waiting for admin approval
-        APPROVED, // Approved by admin
-        REJECTED, // Rejected by admin
-        SUSPENDED // Suspended by admin
+        PENDING_ACCOUNT_APPROVAL, // Phase 1: Just registered, waiting for admin to approve account
+        ACCOUNT_APPROVED, // Phase 1 complete: Account approved, can login but cannot accept rides yet
+        APPROVED, // Phase 2 complete: Both account and ride eligibility approved (kept for
+                  // backward compatibility)
+        REJECTED, // Account/verification rejected by admin
+        SUSPENDED // Account suspended by admin
     }
 }

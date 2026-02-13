@@ -9,26 +9,10 @@ export default function DriverPendingRides({ onAction }) {
   // ================= LOAD PENDING RIDES =================
   const loadPendingRides = async () => {
     try {
-      const res = await apiFetch("/api/driver/bookings/pending");
-
-      // API reachable → clear error
+      // TODO: Replace with actual backend endpoint when available
+      // For now, showing empty state
+      setRides([]);
       setError("");
-
-      if (!res || !res.ok) {
-        throw new Error("Pending rides API failed");
-      }
-
-      const text = await res.text();
-
-      // 👇 Empty body = no pending rides (VALID STATE)
-      if (!text) {
-        setRides([]);
-        return;
-      }
-
-      const data = JSON.parse(text);
-      setRides(Array.isArray(data) ? data : []);
-
     } catch (err) {
       console.error("Pending rides error:", err);
       setError("Unable to load pending ride requests");
@@ -74,11 +58,7 @@ export default function DriverPendingRides({ onAction }) {
   }
 
   if (rides.length === 0) {
-    return (
-      <p className="text-gray-500 text-sm">
-        No pending ride requests.
-      </p>
-    );
+    return <p className="text-gray-500 text-sm">No pending ride requests.</p>;
   }
 
   return (
@@ -89,8 +69,12 @@ export default function DriverPendingRides({ onAction }) {
           className="border rounded-lg p-4 flex justify-between items-center"
         >
           <div>
-            <p><b>Pickup:</b> {ride.pickup}</p>
-            <p><b>Drop:</b> {ride.drop || ride.dropLocation || "—"}</p>
+            <p>
+              <b>Pickup:</b> {ride.pickup}
+            </p>
+            <p>
+              <b>Drop:</b> {ride.drop || ride.dropLocation || "—"}
+            </p>
             <p className="text-sm text-gray-500">
               Passengers: {ride.passengerCount}
             </p>

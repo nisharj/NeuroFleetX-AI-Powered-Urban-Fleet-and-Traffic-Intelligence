@@ -1,20 +1,19 @@
-<<<<<<< HEAD
 import { useState } from "react";
 import DashboardLayout from "../components/Layout/DashboardLayout";
-=======
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
 import {
   FaMapMarkerAlt,
   FaLocationArrow,
   FaCalendarAlt,
   FaClock,
-<<<<<<< HEAD
+  FaUsers,
+  FaCar,
+  FaRoad,
 } from "react-icons/fa";
 import { apiFetch } from "../api/api";
 // import MapPicker from "../components/maps/MapPicker";
 import LocationSearch from "../components/maps/LocationSearch";
+import RouteMap from "../components/RouteMap";
+import { reverseGeocode } from "../utils/googleMapsLoader";
 
 // ================= HELPERS =================
 const getTodayDate = () => {
@@ -27,22 +26,6 @@ const getCurrentTime = () => {
 };
 
 export default function BookRidePage() {
-=======
-  FaArrowLeft,
-} from "react-icons/fa";
-import api from "../services/api";
-import LocationSearch from "../components/LocationSearch";
-import { showToast } from "../components/Toast";
-import RouteMap from "../components/RouteMap";
-
-// ================= HELPERS =================
-const getTodayDate = () => new Date().toISOString().split("T")[0];
-const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
-
-export default function BookRidePage() {
-  const navigate = useNavigate();
-
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
   const [form, setForm] = useState({
     pickup: "",
     pickupLat: "",
@@ -52,11 +35,7 @@ export default function BookRidePage() {
     dropLng: "",
     vehicleType: "",
     rideType: "NOW",
-<<<<<<< HEAD
-    rideDate: getTodayDate(),  
-=======
     rideDate: getTodayDate(),
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
     rideTime: getCurrentTime(),
     passengerCount: 1,
     contactNumber: "",
@@ -65,73 +44,41 @@ export default function BookRidePage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
-
-<<<<<<< HEAD
-=======
-  const [fareInfo, setFareInfo] = useState({
-    distanceKm: null,
-    estimatedFare: null,
-  });
-
-  const [routeSummary, setRouteSummary] = useState({
+  const [routeInfo, setRouteInfo] = useState({
     distanceKm: null,
     durationMin: null,
   });
 
-  // ✅ prevents infinite updates
-  const lastRouteRef = useRef({ distanceKm: null, durationMin: null });
+  // ================= CALCULATE FARE =================
+  const calculateEstimatedFare = () => {
+    if (!routeInfo.distanceKm || !form.vehicleType) return null;
 
-  // ================= ROUTE CHANGE HANDLER =================
-  const handleRouteInfoChange = useCallback(({ distanceKm, durationMin }) => {
-    if (distanceKm == null || durationMin == null) return;
-
-    // ✅ rounding prevents continuous tiny changes
-    const dist = Number(Number(distanceKm).toFixed(3));
-    const dur = Number(Number(durationMin).toFixed(2));
-
-    const last = lastRouteRef.current;
-    if (last.distanceKm === dist && last.durationMin === dur) return;
-
-    lastRouteRef.current = { distanceKm: dist, durationMin: dur };
-
-    setRouteSummary({ distanceKm: dist, durationMin: dur });
-  }, []);
-
-  // ================= FARE CALCULATION =================
-  useEffect(() => {
-    if (!routeSummary.distanceKm || !form.vehicleType) {
-      setFareInfo({ distanceKm: null, estimatedFare: null });
-      return;
-    }
-
-    const rates = {
-      BIKE: 10,
-      AUTO: 15,
-      SUV: 20,
-      SEDAN: 18,
-      ELECTRICAL_VEHICLE: 17,
+    const baseFares = {
+      BIKE: 20,
+      AUTO: 30,
+      CAR: 50,
     };
 
-    const rate = rates[form.vehicleType] || 20;
-    const distance = Number(routeSummary.distanceKm);
-    const fare = 50 + rate * distance;
+    const perKmRates = {
+      BIKE: 8,
+      AUTO: 12,
+      CAR: 15,
+    };
 
-    setFareInfo((prev) => {
-      const newFare = Math.round(fare);
-      if (prev.distanceKm === distance && prev.estimatedFare === newFare)
-        return prev;
+    const baseFare = baseFares[form.vehicleType] || 50;
+    const perKmRate = perKmRates[form.vehicleType] || 15;
 
-      return { distanceKm: distance, estimatedFare: newFare };
-    });
-  }, [routeSummary.distanceKm, form.vehicleType]);
+    const fare = baseFare + routeInfo.distanceKm * perKmRate;
+    return Math.round(fare);
+  };
 
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
+  const estimatedFare = calculateEstimatedFare();
+
   // ================= HANDLE CHANGE =================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     if (name === "rideType" && value === "NOW") {
-<<<<<<< HEAD
       setForm({
         ...form,
         rideType: value,
@@ -162,37 +109,10 @@ export default function BookRidePage() {
     });
   };
 
-  //================== USE CURRENT LOCATION ================= 
-  const useCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation not supported");
-=======
-      setForm((prev) => ({
-        ...prev,
-        rideType: value,
-        rideDate: getTodayDate(),
-        rideTime: getCurrentTime(),
-      }));
-    } else if (name === "rideType" && value === "SCHEDULED") {
-      setForm((prev) => ({
-        ...prev,
-        rideType: value,
-        rideDate: "",
-        rideTime: "",
-      }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
-
-    setErrors((prev) => ({ ...prev, [name]: "" }));
-    setApiError("");
-  };
-
   //================== USE CURRENT LOCATION =================
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      showToast("Geolocation not supported", "error");
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
+      alert("Geolocation not supported");
       return;
     }
 
@@ -201,16 +121,8 @@ export default function BookRidePage() {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-<<<<<<< HEAD
-        const res = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${
-            import.meta.env.VITE_GOOGLE_MAPS_KEY
-          }`
-        );
-
-        const data = await res.json();
-        const address =
-          data.results?.[0]?.formatted_address || "Current location";
+        // Use OpenStreetMap reverse geocoding
+        const address = await reverseGeocode(lat, lng);
 
         setForm((prev) => ({
           ...prev,
@@ -219,37 +131,7 @@ export default function BookRidePage() {
           pickupLng: lng,
         }));
       },
-      () => alert("Unable to fetch location")
-=======
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-            { headers: { Accept: "application/json" } }
-          );
-          const data = await response.json();
-
-          setForm((prev) => ({
-            ...prev,
-            pickup:
-              data.address?.road ||
-              data.address?.village ||
-              data.address?.city ||
-              "Current location",
-            pickupLat: lat,
-            pickupLng: lng,
-          }));
-        } catch (error) {
-          console.error("Reverse geocoding error:", error);
-          setForm((prev) => ({
-            ...prev,
-            pickup: "Current location",
-            pickupLat: lat,
-            pickupLng: lng,
-          }));
-        }
-      },
-      () => showToast("Unable to fetch location", "error")
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
+      () => alert("Unable to fetch location"),
     );
   };
 
@@ -260,7 +142,6 @@ export default function BookRidePage() {
     if (!form.pickup.trim()) newErrors.pickup = "Pickup location is required";
     if (!form.drop.trim()) newErrors.drop = "Drop location is required";
 
-<<<<<<< HEAD
     if (!/^\d{10}$/.test(form.contactNumber)) {
       newErrors.contactNumber = "Enter a valid 10-digit mobile number";
     }
@@ -273,25 +154,13 @@ export default function BookRidePage() {
       newErrors.drop = "Select drop location";
     }
 
+    if (!form.vehicleType) {
+      newErrors.vehicleType = "Please select a vehicle type";
+    }
+
     if (form.passengerCount < 1 || form.passengerCount > 6) {
       newErrors.passengerCount = "Passenger count must be between 1 and 6";
     }
-=======
-    if (!form.pickupLat || !form.pickupLng)
-      newErrors.pickup = "Please select pickup location from suggestions";
-
-    if (!form.dropLat || !form.dropLng)
-      newErrors.drop = "Please select drop location from suggestions";
-
-    if (!form.vehicleType)
-      newErrors.vehicleType = "Please select a vehicle type";
-
-    if (!/^\d{10}$/.test(form.contactNumber))
-      newErrors.contactNumber = "Enter a valid 10-digit mobile number";
-
-    if (form.passengerCount < 1 || form.passengerCount > 6)
-      newErrors.passengerCount = "Passenger count must be between 1 and 6";
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
 
     if (form.rideType === "SCHEDULED") {
       if (!form.rideDate) newErrors.rideDate = "Ride date is required";
@@ -305,23 +174,42 @@ export default function BookRidePage() {
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
-<<<<<<< HEAD
 
-=======
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
     if (!validateForm()) return;
 
     setLoading(true);
     setApiError("");
-<<<<<<< HEAD
-    
+
     try {
+      // Construct pickupTime as ISO datetime string
+      let pickupTime;
+      if (form.rideType === "NOW") {
+        pickupTime = new Date().toISOString();
+      } else {
+        // Combine date and time for scheduled rides
+        pickupTime = new Date(
+          `${form.rideDate}T${form.rideTime}`,
+        ).toISOString();
+      }
+
+      // Map frontend form fields to backend DTO fields
       const payload = {
-        ...form,
-        dropLocation: form.drop
+        pickupAddress: form.pickup,
+        dropAddress: form.drop,
+        pickupLatitude: parseFloat(form.pickupLat),
+        pickupLongitude: parseFloat(form.pickupLng),
+        returnLatitude: parseFloat(form.dropLat),
+        returnLongitude: parseFloat(form.dropLng),
+        vehicleType: form.vehicleType,
+        passengerCount: parseInt(form.passengerCount),
+        contactNumber: form.contactNumber,
+        pickupTime: pickupTime,
+        bookingType: form.rideType.toLowerCase(), // "now" or "scheduled"
       };
 
-      const res = await apiFetch("/api/customer/bookings", {
+      console.log("Sending booking payload:", payload);
+
+      const res = await apiFetch("/api/v1/bookings", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -335,6 +223,9 @@ export default function BookRidePage() {
         }
         return;
       }
+
+      const result = await res.json();
+      console.log("Booking created:", result);
 
       alert("🚗 Ride booked successfully!");
 
@@ -353,56 +244,18 @@ export default function BookRidePage() {
         contactNumber: "",
       });
       setErrors({});
+      setRouteInfo({ distanceKm: null, durationMin: null });
     } catch (err) {
-      setApiError("Network error. Please try again." + err.message);
-=======
-
-    try {
-      const pickupTime =
-        form.rideType === "NOW"
-          ? new Date().toISOString().slice(0, 19)
-          : `${form.rideDate}T${form.rideTime}:00`;
-
-      const payload = {
-        vehicleId: null,
-        pickupAddress: form.pickup,
-        dropAddress: form.drop,
-        pickupLatitude: parseFloat(form.pickupLat),
-        pickupLongitude: parseFloat(form.pickupLng),
-        returnLatitude: parseFloat(form.dropLat),
-        returnLongitude: parseFloat(form.dropLng),
-        passengerCount: parseInt(form.passengerCount),
-        vehicleType: form.vehicleType,
-        contactNumber: form.contactNumber,
-        bookingType: form.rideType.toLowerCase(),
-        pickupTime: pickupTime,
-        returnTime: null,
-      };
-
-      await api.post("/v1/bookings", payload);
-
-      showToast("🚗 Ride booked successfully!", "success");
-
-      navigate("/dashboard");
-    } catch (err) {
-      console.error("=== BOOKING ERROR ===", err);
-
-      const msg =
-        err.response?.data?.message || err.message || "Failed to book ride";
-
-      setApiError(msg);
-      showToast(msg, "error");
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)
+      console.error("Booking error:", err);
+      setApiError("Network error. Please try again. " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-<<<<<<< HEAD
   return (
     <DashboardLayout title="Book a Ride">
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* ================= LEFT : FORM ================= */}
         <div className="bg-white rounded-xl shadow p-6">
           <h2 className="text-xl font-semibold mb-6">Ride Details</h2>
@@ -414,44 +267,68 @@ export default function BookRidePage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-
             {/* Pickup */}
-             <div>
-              <label className="flex center-item gap-1 text-sm font-medium mb-2 block"><FaMapMarkerAlt className="text-green-600" /> Pickup Location</label>
+            <div>
+              <label className="flex center-item gap-1 text-sm font-medium mb-2 block">
+                <FaMapMarkerAlt className="text-green-600" /> Pickup Location
+              </label>
               <LocationSearch
                 placeholder="Search pickup location"
-                onSelect={({ address, lat, lng }) =>
+                value={form.pickup}
+                onSelect={({ address, lat, lng }) => {
+                  console.log("Pickup selected:", { address, lat, lng });
                   setForm({
                     ...form,
                     pickup: address,
                     pickupLat: lat,
                     pickupLng: lng,
-                  })
-                }
+                  });
+                }}
               />
+              {form.pickup && (
+                <div className="mt-1 text-xs text-green-600">
+                  ✓ {form.pickup}
+                </div>
+              )}
 
-              <button type="button" onClick={useCurrentLocation} className="mt-2 text-sm text-indigo-600 hover:underline">
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                className="mt-2 text-sm text-indigo-600 hover:underline"
+              >
                 Use Current Location
               </button>
-              {errors.pickup && <p className="text-red-500 text-xs">{errors.pickup}</p>}
+              {errors.pickup && (
+                <p className="text-red-500 text-xs">{errors.pickup}</p>
+              )}
             </div>
 
             {/* Drop */}
             <div>
-              <label className="flex center-item gap-1 text-sm font-medium"><FaLocationArrow className="text-red-500" />Drop Location</label>
+              <label className="flex center-item gap-1 text-sm font-medium mb-2 block">
+                <FaLocationArrow className="text-red-500" />
+                Drop Location
+              </label>
 
               <LocationSearch
                 placeholder="Search drop location"
-                onSelect={({ address, lat, lng }) =>
+                value={form.drop}
+                onSelect={({ address, lat, lng }) => {
+                  console.log("Drop selected:", { address, lat, lng });
                   setForm({
                     ...form,
                     drop: address,
                     dropLat: lat,
                     dropLng: lng,
-                  })
-                }
+                  });
+                }}
               />
-              {errors.drop && <p className="text-red-500 text-xs">{errors.drop}</p>}
+              {form.drop && (
+                <div className="mt-1 text-xs text-red-600">✓ {form.drop}</div>
+              )}
+              {errors.drop && (
+                <p className="text-red-500 text-xs">{errors.drop}</p>
+              )}
             </div>
 
             {/* Passenger Count */}
@@ -460,11 +337,15 @@ export default function BookRidePage() {
               <select
                 name="passengerCount"
                 value={form.passengerCount}
-                onChange={(e) => setForm({ ...form, passengerCount: Number(e.target.value) }) }
+                onChange={(e) =>
+                  setForm({ ...form, passengerCount: Number(e.target.value) })
+                }
                 className="border p-2 rounded w-full"
               >
                 {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <option key={n} value={n}>{n}</option>
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
                 ))}
               </select>
               {errors.passengerCount && (
@@ -545,7 +426,9 @@ export default function BookRidePage() {
                     onChange={handleChange}
                     className="border p-2 rounded w-full"
                   />
-                  {errors.rideDate && <p className="text-red-500 text-xs">{errors.rideDate}</p>}
+                  {errors.rideDate && (
+                    <p className="text-red-500 text-xs">{errors.rideDate}</p>
+                  )}
                 </div>
 
                 <div>
@@ -559,12 +442,12 @@ export default function BookRidePage() {
                     onChange={handleChange}
                     className="border p-2 rounded w-full"
                   />
-                  {errors.rideTime && <p className="text-red-500 text-xs">{errors.rideTime}</p>}
+                  {errors.rideTime && (
+                    <p className="text-red-500 text-xs">{errors.rideTime}</p>
+                  )}
                 </div>
               </div>
             )}
-
-           
 
             {/* Submit */}
             <button
@@ -578,392 +461,164 @@ export default function BookRidePage() {
           </form>
         </div>
 
-        {/* ================= RIGHT : SUMMARY ================= */}
-        <div className="bg-gray-50 rounded-xl shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Ride Summary</h2>
-
-          <div className="space-y-3 text-sm">
-            <p><b>Pickup:</b> {form.pickup || "—"}</p>
-            <p><b>Drop:</b> {form.drop || "—"}</p>
-            <p><b>Date:</b> {form.rideDate || "—"}</p>
-            <p><b>Time:</b> {form.rideTime || "—"}</p>
-
-            <hr />
-
-            <div className="flex justify-between font-semibold">
-              <span>Estimated Fare</span>
-              <span>₹ ---</span>
+        {/* ================= RIGHT : MAP & SUMMARY ================= */}
+        <div className="space-y-6">
+          {/* Route Map */}
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div style={{ height: "350px" }}>
+              {form.pickupLat &&
+              form.pickupLng &&
+              form.dropLat &&
+              form.dropLng ? (
+                <RouteMap
+                  pickup={{
+                    lat: parseFloat(form.pickupLat),
+                    lng: parseFloat(form.pickupLng),
+                  }}
+                  drop={{
+                    lat: parseFloat(form.dropLat),
+                    lng: parseFloat(form.dropLng),
+                  }}
+                  onRouteInfoChange={setRouteInfo}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-100 text-gray-500">
+                  <div className="text-center">
+                    <FaMapMarkerAlt className="text-4xl mb-2 mx-auto" />
+                    <p>Select pickup and drop locations to view route</p>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
 
-            <p className="text-xs text-gray-500">
-              Fare will be calculated after driver assignment
-            </p>
+          {/* Ride Summary */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">Ride Summary</h2>
+
+            <div className="space-y-3 text-sm">
+              {/* Pickup Location */}
+              <div className="flex items-start gap-2">
+                <FaMapMarkerAlt className="text-green-600 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-xs text-gray-600">Pickup</div>
+                  <div className="font-medium">
+                    {form.pickup || "Not selected"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Drop Location */}
+              <div className="flex items-start gap-2">
+                <FaLocationArrow className="text-red-600 mt-1 flex-shrink-0" />
+                <div>
+                  <div className="text-xs text-gray-600">Drop</div>
+                  <div className="font-medium">
+                    {form.drop || "Not selected"}
+                  </div>
+                </div>
+              </div>
+
+              <hr className="my-3" />
+
+              {/* Trip Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-2">
+                  <FaCalendarAlt className="text-blue-600" />
+                  <div>
+                    <div className="text-xs text-gray-600">Date</div>
+                    <div className="font-medium">{form.rideDate || "—"}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <FaClock className="text-blue-600" />
+                  <div>
+                    <div className="text-xs text-gray-600">Time</div>
+                    <div className="font-medium">{form.rideTime || "—"}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <FaUsers className="text-purple-600" />
+                  <div>
+                    <div className="text-xs text-gray-600">Passengers</div>
+                    <div className="font-medium">{form.passengerCount}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <FaCar className="text-orange-600" />
+                  <div>
+                    <div className="text-xs text-gray-600">Vehicle</div>
+                    <div className="font-medium">
+                      {form.vehicleType || "Not selected"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Route Info */}
+              {routeInfo.distanceKm && routeInfo.durationMin && (
+                <>
+                  <hr className="my-3" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2">
+                      <FaRoad className="text-indigo-600" />
+                      <div>
+                        <div className="text-xs text-gray-600">Distance</div>
+                        <div className="font-medium">
+                          {routeInfo.distanceKm.toFixed(2)} km
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <FaClock className="text-indigo-600" />
+                      <div>
+                        <div className="text-xs text-gray-600">Duration</div>
+                        <div className="font-medium">
+                          {Math.round(routeInfo.durationMin)} min
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <hr className="my-3" />
+
+              {/* Fare */}
+              <div className="flex justify-between items-center font-semibold text-lg">
+                <span>Estimated Fare</span>
+                <span className="text-green-600">
+                  {estimatedFare ? `₹${estimatedFare}` : "—"}
+                </span>
+              </div>
+
+              {estimatedFare ? (
+                <p className="text-xs text-gray-500">
+                  Base fare + ₹
+                  {form.vehicleType === "BIKE"
+                    ? "8"
+                    : form.vehicleType === "AUTO"
+                      ? "12"
+                      : "15"}
+                  /km × {routeInfo.distanceKm?.toFixed(2) || 0} km
+                </p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  {!form.vehicleType
+                    ? "Select vehicle type to see fare"
+                    : !routeInfo.distanceKm
+                      ? "Select locations to calculate fare"
+                      : "Calculating..."}
+                </p>
+              )}
+            </div>
           </div>
         </div>
-
       </div>
     </DashboardLayout>
   );
 }
-
-=======
-  // ================= UI =================
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* HEADER */}
-      <header className="bg-white shadow-sm w-full">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="h-16 flex items-center justify-between">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-2 text-gray-700 hover:text-gray-900 font-medium transition"
-            >
-              <FaArrowLeft className="text-sm" />
-              Back
-            </button>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900">
-              Book a Ride
-            </h1>
-            <div className="w-20" />
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN */}
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* LEFT CARD - Ride Details */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              Ride Details
-            </h2>
-
-            {apiError && (
-              <div className="mb-6 bg-red-50 border border-red-200 p-4 rounded-xl">
-                <p className="text-sm text-red-800 font-medium">{apiError}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Pickup */}
-              <div>
-                <p className="flex items-center gap-2 font-semibold text-gray-800 mb-2">
-                  <FaMapMarkerAlt className="text-green-600" />
-                  Pickup Location
-                </p>
-
-                <LocationSearch
-                  value={{
-                    address: form.pickup,
-                    lat: form.pickupLat,
-                    lng: form.pickupLng,
-                  }}
-                  onChange={({ address, lat, lng }) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      pickup: address,
-                      pickupLat: lat,
-                      pickupLng: lng,
-                    }))
-                  }
-                  placeholder="Search pickup location"
-                  className="w-full"
-                />
-
-                <button
-                  type="button"
-                  onClick={useCurrentLocation}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Use Current Location
-                </button>
-
-                {errors.pickup && (
-                  <p className="mt-2 text-xs text-red-600">{errors.pickup}</p>
-                )}
-              </div>
-
-              {/* Drop */}
-              <div>
-                <p className="flex items-center gap-2 font-semibold text-gray-800 mb-2">
-                  <FaLocationArrow className="text-red-500" />
-                  Drop Location
-                </p>
-
-                <LocationSearch
-                  value={{
-                    address: form.drop,
-                    lat: form.dropLat,
-                    lng: form.dropLng,
-                  }}
-                  onChange={({ address, lat, lng }) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      drop: address,
-                      dropLat: lat,
-                      dropLng: lng,
-                    }))
-                  }
-                  placeholder="Search drop location"
-                  className="w-full"
-                />
-
-                {errors.drop && (
-                  <p className="mt-2 text-xs text-red-600">{errors.drop}</p>
-                )}
-              </div>
-
-              {/* Passengers */}
-              <div>
-                <p className="font-semibold text-gray-800 mb-2">Passengers</p>
-                <select
-                  name="passengerCount"
-                  value={form.passengerCount}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      passengerCount: Number(e.target.value),
-                    }))
-                  }
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-
-                {errors.passengerCount && (
-                  <p className="mt-2 text-xs text-red-600">
-                    {errors.passengerCount}
-                  </p>
-                )}
-              </div>
-
-              {/* Vehicle Type */}
-              <div>
-                <p className="font-semibold text-gray-800 mb-2">Vehicle Type</p>
-                <select
-                  name="vehicleType"
-                  value={form.vehicleType}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="">Select vehicle</option>
-                  <option value="BIKE">Bike</option>
-                  <option value="AUTO">Auto</option>
-                  <option value="SUV">SUV</option>
-                  <option value="SEDAN">Sedan</option>
-                  <option value="ELECTRICAL_VEHICLE">Electrical Vehicle</option>
-                </select>
-
-                {errors.vehicleType && (
-                  <p className="mt-2 text-xs text-red-600">
-                    {errors.vehicleType}
-                  </p>
-                )}
-              </div>
-
-              {/* Contact Number */}
-              <div>
-                <p className="font-semibold text-gray-800 mb-2">
-                  Contact Number
-                </p>
-                <input
-                  type="tel"
-                  name="contactNumber"
-                  value={form.contactNumber}
-                  onChange={handleChange}
-                  placeholder="10-digit mobile number"
-                  maxLength={10}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
-
-                {errors.contactNumber && (
-                  <p className="mt-2 text-xs text-red-600">
-                    {errors.contactNumber}
-                  </p>
-                )}
-              </div>
-
-              {/* Ride type */}
-              <div className="pt-2">
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="rideType"
-                      value="NOW"
-                      checked={form.rideType === "NOW"}
-                      onChange={handleChange}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Ride Now
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="rideType"
-                      value="SCHEDULED"
-                      checked={form.rideType === "SCHEDULED"}
-                      onChange={handleChange}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium text-gray-700">
-                      Schedule Ride
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Scheduled Inputs */}
-              {form.rideType === "SCHEDULED" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <p className="flex items-center gap-2 font-semibold text-gray-800 mb-2">
-                      <FaCalendarAlt className="text-blue-600" />
-                      Date
-                    </p>
-                    <input
-                      type="date"
-                      name="rideDate"
-                      value={form.rideDate}
-                      min={getTodayDate()}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                    {errors.rideDate && (
-                      <p className="mt-2 text-xs text-red-600">
-                        {errors.rideDate}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="flex items-center gap-2 font-semibold text-gray-800 mb-2">
-                      <FaClock className="text-blue-600" />
-                      Time
-                    </p>
-                    <input
-                      type="time"
-                      name="rideTime"
-                      value={form.rideTime}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
-                    {errors.rideTime && (
-                      <p className="mt-2 text-xs text-red-600">
-                        {errors.rideTime}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full py-4 rounded-lg font-semibold text-white transition-all ${
-                  loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700"
-                }`}
-              >
-                {loading ? "Booking..." : "Confirm Ride"}
-              </button>
-            </form>
-          </div>
-
-          {/* RIGHT CARD - Ride Summary */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-              Ride Summary
-            </h2>
-
-            <div className="space-y-4">
-              <div>
-                <p className="font-semibold text-gray-800">Pickup:</p>
-                <p className="text-gray-600 text-sm">{form.pickup || "—"}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-gray-800">Drop:</p>
-                <p className="text-gray-600 text-sm">{form.drop || "—"}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-gray-800">Date:</p>
-                <p className="text-gray-600 text-sm">{form.rideDate || "—"}</p>
-              </div>
-
-              <div>
-                <p className="font-semibold text-gray-800">Time:</p>
-                <p className="text-gray-600 text-sm">{form.rideTime || "—"}</p>
-              </div>
-
-              <div className="border-t border-gray-200 pt-6" />
-
-              <div>
-                <p className="font-semibold text-gray-800 mb-2">
-                  Estimated Fare
-                </p>
-
-                {fareInfo.estimatedFare ? (
-                  <div>
-                    <p className="text-3xl font-bold text-gray-900">
-                      ₹{fareInfo.estimatedFare}
-                    </p>
-                    {fareInfo.distanceKm && (
-                      <p className="mt-2 text-xs text-gray-500">
-                        Distance: {fareInfo.distanceKm.toFixed(2)} km
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500 italic">
-                    Select pickup, drop and vehicle to calculate fare
-                  </p>
-                )}
-              </div>
-
-              {/* Route Map */}
-              <div className="mt-6">
-                <RouteMap
-                  pickup={
-                    form.pickupLat && form.pickupLng
-                      ? {
-                          lat: Number(form.pickupLat),
-                          lng: Number(form.pickupLng),
-                        }
-                      : null
-                  }
-                  drop={
-                    form.dropLat && form.dropLng
-                      ? { lat: Number(form.dropLat), lng: Number(form.dropLng) }
-                      : null
-                  }
-                  onRouteInfoChange={handleRouteInfoChange}
-                />
-
-                {routeSummary.distanceKm !== null && (
-                  <div className="mt-3 px-3 py-2 bg-gray-50 rounded">
-                    <p className="text-sm text-gray-700">
-                      <strong>{routeSummary.distanceKm.toFixed(2)} km</strong> •{" "}
-                      <span>{Math.round(routeSummary.durationMin)} min</span>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
->>>>>>> 6052cd2 (Initial commit: NeuroFleetX platform with Java 17 backend)

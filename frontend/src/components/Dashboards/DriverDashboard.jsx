@@ -2,11 +2,7 @@ import { useEffect, useState } from "react";
 import MetricCard from "../MetricCard";
 import DashboardLayout from "../Layout/DashboardLayout.jsx";
 import { apiFetch } from "../../api/api";
-import {
-  FaClipboardCheck,
-  FaCheckCircle,
-  FaCarSide,
-} from "react-icons/fa";
+import { FaClipboardCheck, FaCheckCircle, FaCarSide } from "react-icons/fa";
 
 import DriverPendingRides from "../DriverPendingRides";
 
@@ -23,14 +19,12 @@ export default function DriverDashboard() {
   // ================= LOAD METRICS =================
   const loadMetrics = async () => {
     try {
-      const res = await apiFetch("/api/driver/metrics");
-      if (!res || !res.ok) throw new Error();
-
-      const data = await res.json();
+      // TODO: Replace with actual backend endpoint when available
+      // For now using mock data
       setMetrics({
-        assignedTrips: data.assignedTrips,
-        completedTrips: data.completedTrips,
-        vehicleStatus: data.vehicleStatus === 1 ? "Active" : "Inactive",
+        assignedTrips: 0,
+        completedTrips: 0,
+        vehicleStatus: "Active",
       });
       setMetricsError("");
     } catch {
@@ -41,7 +35,7 @@ export default function DriverDashboard() {
   // ================= LOAD ACTIVE RIDE =================
   const loadActiveRide = async () => {
     try {
-      const res = await apiFetch("/api/driver/bookings/active");
+      const res = await apiFetch("/api/v1/bookings/driver/active");
 
       // API reachable → clear error
       setActiveRideError("");
@@ -60,7 +54,6 @@ export default function DriverDashboard() {
 
       const data = JSON.parse(text);
       setActiveRide(data || null);
-
     } catch (err) {
       console.error("Active ride error:", err);
       setActiveRide(null);
@@ -68,22 +61,19 @@ export default function DriverDashboard() {
     }
   };
 
-
   // ================= ACTIONS =================
   const startRide = async () => {
-    await apiFetch(
-      `/api/driver/bookings/${activeRide.id}/start`,
-      { method: "POST" }
-    );
+    await apiFetch(`/api/v1/bookings/${activeRide.id}/start`, {
+      method: "POST",
+    });
     loadActiveRide();
     loadMetrics();
   };
 
   const completeRide = async () => {
-    await apiFetch(
-      `/api/driver/bookings/${activeRide.id}/complete`,
-      { method: "POST" }
-    );
+    await apiFetch(`/api/v1/bookings/${activeRide.id}/complete`, {
+      method: "POST",
+    });
     loadActiveRide();
     loadMetrics();
   };
@@ -91,10 +81,7 @@ export default function DriverDashboard() {
   // ================= INIT + POLLING =================
   useEffect(() => {
     const loadAll = async () => {
-      await Promise.all([
-        loadMetrics(),
-        loadActiveRide(),
-      ]);
+      await Promise.all([loadMetrics(), loadActiveRide()]);
       setLoading(false);
     };
 
@@ -116,7 +103,6 @@ export default function DriverDashboard() {
   return (
     <DashboardLayout title="Driver Dashboard">
       <div className="p-6 space-y-8">
-
         {/* ================= METRICS ================= */}
         <div>
           <h2 className="text-lg font-semibold mb-3">Overview</h2>
@@ -155,8 +141,12 @@ export default function DriverDashboard() {
             <p className="text-red-500 text-sm">{activeRideError}</p>
           ) : activeRide ? (
             <>
-              <p><b>Pickup:</b> {activeRide.pickup}</p>
-              <p><b>Drop:</b> {activeRide.dropLocation}</p>
+              <p>
+                <b>Pickup:</b> {activeRide.pickup}
+              </p>
+              <p>
+                <b>Drop:</b> {activeRide.dropLocation}
+              </p>
 
               <p className="mt-2">
                 <b>Status:</b>{" "}
@@ -186,22 +176,16 @@ export default function DriverDashboard() {
               </div>
             </>
           ) : (
-            <p className="text-gray-500">
-              No current ride assigned yet.
-            </p>
+            <p className="text-gray-500">No current ride assigned yet.</p>
           )}
         </div>
 
-
         {/* ================= PENDING RIDES ================= */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">
-            Pending Ride Requests
-          </h2>
+          <h2 className="text-lg font-semibold mb-4">Pending Ride Requests</h2>
 
           <DriverPendingRides onAction={loadActiveRide} />
         </div>
-
       </div>
     </DashboardLayout>
   );

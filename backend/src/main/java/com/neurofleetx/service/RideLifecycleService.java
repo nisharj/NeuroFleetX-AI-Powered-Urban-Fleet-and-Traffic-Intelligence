@@ -2,8 +2,10 @@ package com.neurofleetx.service;
 
 import com.neurofleetx.dto.RideLifecycleDTO;
 import com.neurofleetx.model.Booking;
+import com.neurofleetx.model.DriverVerification;
 import com.neurofleetx.model.User;
 import com.neurofleetx.repository.BookingRepository;
+import com.neurofleetx.repository.DriverVerificationRepository;
 import com.neurofleetx.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -26,6 +29,7 @@ public class RideLifecycleService {
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
+    private final DriverVerificationRepository driverVerificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     // ===================== RIDE ACCEPTANCE FLOW =====================
@@ -57,8 +61,27 @@ public class RideLifecycleService {
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeException("Driver not found: " + driverId));
 
-        if (!driver.getRole().equals("driver")) {
+        if (driver.getRole() != User.Role.DRIVER) {
             throw new RuntimeException("User is not a driver");
+        }
+
+        // Phase 1: Check account approval
+        if (driver.getApprovalStatus() != User.ApprovalStatus.ACCOUNT_APPROVED
+                && driver.getApprovalStatus() != User.ApprovalStatus.APPROVED) {
+            throw new RuntimeException(
+                    "Your account has not been approved yet. Please wait for admin approval.");
+        }
+
+        // Phase 2: Check ride eligibility (driver verification)
+        Optional<DriverVerification> verification = driverVerificationRepository.findByDriverId(driverId);
+        if (verification.isEmpty()) {
+            throw new RuntimeException(
+                    "Please submit your driver verification details first.");
+        }
+
+        if (verification.get().getVerificationStatus() != DriverVerification.VerificationStatus.APPROVED) {
+            throw new RuntimeException(
+                    "Your driver verification is not approved yet. Please complete verification and wait for admin approval.");
         }
 
         // Update booking

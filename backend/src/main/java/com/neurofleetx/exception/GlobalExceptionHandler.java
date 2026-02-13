@@ -45,6 +45,9 @@ public class GlobalExceptionHandler {
             errors.put(fieldName, errorMessage);
         });
 
+        logger.warn("Validation failed for {}: {}",
+                request.getDescription(false).replace("uri=", ""), errors);
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())

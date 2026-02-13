@@ -36,7 +36,7 @@ public class AdminDriverController {
         try {
             List<User> pendingDrivers = userRepository.findByRoleAndApprovalStatus(
                     User.Role.DRIVER,
-                    User.ApprovalStatus.PENDING_APPROVAL);
+                    User.ApprovalStatus.PENDING_ACCOUNT_APPROVAL);
 
             List<Map<String, Object>> driverList = pendingDrivers.stream()
                     .map(driver -> {

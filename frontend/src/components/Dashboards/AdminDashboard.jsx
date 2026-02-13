@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../Layout/DashboardLayout.jsx";
 import MetricCard from "../MetricCard";
+import PendingApprovals from "../PendingApprovals";
 import { apiFetch } from "../../api/api";
 import {
   FaUsers,
@@ -91,7 +92,10 @@ export default function AdminDashboard() {
           icon={<FaClipboardList />}
         />
       </div>
-
+      {/* PENDING APPROVALS */}
+      <div className="mb-8">
+        <PendingApprovals />
+      </div>
       {/* QUICK ACTIONS */}
       <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
 

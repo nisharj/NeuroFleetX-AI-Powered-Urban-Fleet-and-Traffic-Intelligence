@@ -134,10 +134,13 @@ public class DriverService {
             vehicle = vehicleRepository.save(vehicle);
             logger.debug("Vehicle saved with ID: {}", vehicle.getId());
 
-            // Update driver details
+            // Update driver details (legacy vehicle submission)
             driver.setVehicle(vehicle);
             driver.setDetailsSubmitted(true);
-            driver.setApprovalStatus(User.ApprovalStatus.PENDING_APPROVAL);
+            // Note: Don't change approval status here - it's managed by the two-phase
+            // approval system
+            // driver.setApprovalStatus(User.ApprovalStatus.PENDING_APPROVAL); // OLD CODE
+            // REMOVED
 
             driver.setLicenseNumber(request.getLicenseNumber());
             driver.setPhone(request.getPhone());
@@ -234,10 +237,10 @@ public class DriverService {
             return status;
         }
 
-        if (driver.getApprovalStatus() == User.ApprovalStatus.PENDING_APPROVAL) {
+        if (driver.getApprovalStatus() == User.ApprovalStatus.PENDING_ACCOUNT_APPROVAL) {
             status.setEligible(false);
-            status.setReason("Your vehicle details are pending admin approval");
-            status.setRequiresAction("WAIT_FOR_APPROVAL");
+            status.setReason("Your account is pending admin approval");
+            status.setRequiresAction("WAIT_FOR_ACCOUNT_APPROVAL");
             return status;
         }
 

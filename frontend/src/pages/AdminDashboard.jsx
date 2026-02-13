@@ -4,6 +4,8 @@ import adminService from "../services/adminService";
 import Toast from "../components/Toast";
 import PendingDriversList from "../components/PendingDriversList";
 import AdminBookings from "../components/AdminBookings";
+import UserManagement from "../components/UserManagement";
+import AdminDriverApprovals from "../components/AdminDriverApprovals";
 
 function AdminDashboard({ user, onLogout }) {
   const [view, setView] = useState("overview"); // 'overview', 'users', 'drivers', 'approvals'
@@ -54,16 +56,6 @@ function AdminDashboard({ user, onLogout }) {
     try {
       await adminService.rejectUser(userId, "Admin rejected");
       showToast("User rejected successfully");
-      fetchData(); // Refresh data
-    } catch (error) {
-      showToast(error, "error");
-    }
-  };
-
-  const handleToggleStatus = async (userId) => {
-    try {
-      await adminService.toggleUserStatus(userId);
-      showToast("User stats updated successfully");
       fetchData(); // Refresh data
     } catch (error) {
       showToast(error, "error");
@@ -125,6 +117,26 @@ function AdminDashboard({ user, onLogout }) {
             User Management
           </button>
           <button
+            className={`driver-tab ${view === "approvals" ? "active" : ""}`}
+            onClick={() => setView("approvals")}
+          >
+            Account Approvals (Phase 1)
+            {pendingApprovals.length > 0 && (
+              <span
+                className="badge badge-error ml-sm"
+                style={{ fontSize: "0.7rem", padding: "2px 6px" }}
+              >
+                {pendingApprovals.length}
+              </span>
+            )}
+          </button>
+          <button
+            className={`driver-tab ${view === "driver-approvals" ? "active" : ""}`}
+            onClick={() => setView("driver-approvals")}
+          >
+            Ride Eligibility (Phase 2)
+          </button>
+          <button
             className={`driver-tab ${view === "drivers" ? "active" : ""}`}
             onClick={() => setView("drivers")}
           >
@@ -135,20 +147,6 @@ function AdminDashboard({ user, onLogout }) {
             onClick={() => setView("bookings")}
           >
             Bookings
-          </button>
-          <button
-            className={`driver-tab ${view === "approvals" ? "active" : ""}`}
-            onClick={() => setView("approvals")}
-          >
-            Pending Approvals
-            {pendingApprovals.length > 0 && (
-              <span
-                className="badge badge-error ml-sm"
-                style={{ fontSize: "0.7rem", padding: "2px 6px" }}
-              >
-                {pendingApprovals.length}
-              </span>
-            )}
           </button>
         </div>
 
@@ -173,14 +171,16 @@ function AdminDashboard({ user, onLogout }) {
               onClick={() => setView("approvals")}
             >
               <div className="flex justify-between items-center mb-md">
-                <span className="text-secondary">Pending Approvals</span>
+                <span className="text-secondary">
+                  Pending Account Approvals
+                </span>
                 <span className="text-2xl">⏳</span>
               </div>
               <div className="text-4xl font-bold text-accent-orange">
                 {stats.pendingApprovals}
               </div>
               <div className="text-sm text-secondary mt-xs">
-                Action Required
+                Phase 1: Account Registration
               </div>
             </div>
 
@@ -209,83 +209,26 @@ function AdminDashboard({ user, onLogout }) {
 
         {/* User Management Tab */}
         {view === "users" && (
-          <div className="glass-card animate-fadeIn">
-            <h3 className="section-title mb-lg">All Users</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-light">
-                    <th className="p-md font-semibold text-secondary">Name</th>
-                    <th className="p-md font-semibold text-secondary">Email</th>
-                    <th className="p-md font-semibold text-secondary">Role</th>
-                    <th className="p-md font-semibold text-secondary">
-                      Status
-                    </th>
-                    <th className="p-md font-semibold text-secondary">
-                      Approval
-                    </th>
-                    <th className="p-md font-semibold text-secondary">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr
-                      key={u.id}
-                      className="border-b border-light hover:bg-white/5 transition-colors"
-                    >
-                      <td className="p-md font-medium">{u.name}</td>
-                      <td className="p-md text-secondary">{u.email}</td>
-                      <td className="p-md">
-                        <span
-                          className={`badge ${
-                            u.role === "ADMIN"
-                              ? "badge-primary"
-                              : u.role === "FLEET_MANAGER"
-                                ? "badge-secondary"
-                                : u.role === "DRIVER"
-                                  ? "badge-success"
-                                  : "badge-neutral"
-                          }`}
-                        >
-                          {u.role.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="p-md">
-                        <span
-                          className={`status-dot ${u.isActive ? "bg-success" : "bg-error"}`}
-                        ></span>
-                        {u.isActive ? "Active" : "Inactive"}
-                      </td>
-                      <td className="p-md">
-                        {u.approvalStatus === "APPROVED" && (
-                          <span className="text-success">Approved</span>
-                        )}
-                        {u.approvalStatus === "PENDING" && (
-                          <span className="text-warning">Pending</span>
-                        )}
-                        {u.approvalStatus === "REJECTED" && (
-                          <span className="text-error">Rejected</span>
-                        )}
-                        {!u.approvalStatus && (
-                          <span className="text-secondary">-</span>
-                        )}
-                      </td>
-                      <td className="p-md">
-                        <button
-                          onClick={() => handleToggleStatus(u.id)}
-                          className={`btn btn-sm ${u.isActive ? "btn-danger" : "btn-success"}`}
-                          disabled={u.role === "ADMIN"}
-                        >
-                          {u.isActive ? "Deactivate" : "Activate"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="animate-fadeIn">
+            <UserManagement />
+          </div>
+        )}
+
+        {/* Driver Verifications Tab (Phase 2) */}
+        {view === "driver-approvals" && (
+          <div className="animate-fadeIn">
+            <div className="mb-lg">
+              <h3 className="section-title mb-sm">
+                Phase 2: Ride Eligibility Approvals
+              </h3>
+              <p className="text-secondary">
+                Review and approve driver verification details (license,
+                vehicle, insurance). Drivers must complete Phase 1 (account
+                approval) before submitting verification. Only drivers with both
+                approvals can accept ride requests.
+              </p>
             </div>
+            <AdminDriverApprovals />
           </div>
         )}
 
@@ -303,10 +246,20 @@ function AdminDashboard({ user, onLogout }) {
           </div>
         )}
 
-        {/* Pending Approvals Tab */}
+        {/* Pending Approvals Tab (Phase 1) */}
         {view === "approvals" && (
           <div className="animate-fadeIn">
-            <h3 className="section-title mb-lg">Pending Approvals</h3>
+            <div className="mb-lg">
+              <h3 className="section-title mb-sm">
+                Phase 1: Account Approvals
+              </h3>
+              <p className="text-secondary">
+                Approve new driver and fleet manager registrations. Once
+                approved, they can log in to their dashboard. Drivers will then
+                need to submit verification details (Phase 2) before accepting
+                rides.
+              </p>
+            </div>
             {pendingApprovals.length === 0 ? (
               <div className="glass-card text-center p-xl">
                 <span className="text-4xl block mb-md">✅</span>

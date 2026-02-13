@@ -29,6 +29,8 @@ export default function CustomerDashboard() {
         const res = await apiFetch("/api/customer/bookings");
         if (!res || !res.ok) throw new Error();
         const data = await res.json();
+        console.log("📊 Customer Dashboard - Fetched bookings:", data);
+        console.log("📊 Sample booking structure:", data[0]);
         setBookings(data);
       } catch {
         setError("Failed to load booking data");
@@ -49,18 +51,37 @@ export default function CustomerDashboard() {
   const totalBookings = normalizedBookings.length;
 
   const activeBookings = normalizedBookings.filter((b) =>
-    ["PENDING", "ACCEPTED", "IN_PROGRESS"].includes(b.status)
+    [
+      "PENDING",
+      "BROADCASTED",
+      "ACCEPTED",
+      "ARRIVED",
+      "IN_PROGRESS",
+      "STARTED",
+    ].includes(b.status),
   );
 
   const completedBookings = normalizedBookings.filter(
-    (b) => b.status === "COMPLETED"
+    (b) => b.status === "COMPLETED",
+  );
+
+  console.log("📊 Total bookings:", totalBookings);
+  console.log("📊 Active bookings:", activeBookings.length, activeBookings);
+  console.log(
+    "📊 Completed bookings:",
+    completedBookings.length,
+    completedBookings,
   );
 
   const activeRide = activeBookings[0] || null;
 
   const recentRides = completedBookings
     .slice()
-    .sort((a, b) => new Date(b.rideDate) - new Date(a.rideDate))
+    .sort(
+      (a, b) =>
+        new Date(b.pickupTime || b.createdAt) -
+        new Date(a.pickupTime || a.createdAt),
+    )
     .slice(0, 5);
 
   // ===== LOADING =====
@@ -75,7 +96,6 @@ export default function CustomerDashboard() {
   return (
     <DashboardLayout title="Customer Dashboard">
       <div className="p-6 space-y-8">
-
         {/* ===== METRICS ===== */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard
@@ -107,9 +127,11 @@ export default function CustomerDashboard() {
           ) : activeRide ? (
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-medium">Pickup: {activeRide.pickup}</p>
+                <p className="font-medium">
+                  Pickup: {activeRide.pickupAddress || "N/A"}
+                </p>
                 <p className="text-sm text-gray-600">
-                  Drop: {activeRide.dropLocation}
+                  Drop: {activeRide.dropAddress || "N/A"}
                 </p>
               </div>
               <span className="px-4 py-1 rounded-full bg-green-100 text-green-700 text-sm">
@@ -132,17 +154,13 @@ export default function CustomerDashboard() {
             >
               <FaPlusCircle className="text-3xl mb-3" />
               <h3 className="text-lg font-semibold">Book a Ride</h3>
-              <p className="text-sm opacity-90">
-                Request a new ride instantly
-              </p>
+              <p className="text-sm opacity-90">Request a new ride instantly</p>
             </div>
 
             <div className="bg-gray-700 text-white p-6 rounded-lg shadow">
               <FaCar className="text-3xl mb-3" />
               <h3 className="text-lg font-semibold">Ride History</h3>
-              <p className="text-sm opacity-90">
-                View completed rides below
-              </p>
+              <p className="text-sm opacity-90">View completed rides below</p>
             </div>
           </div>
         </div>
@@ -160,7 +178,13 @@ export default function CustomerDashboard() {
                   key={ride.id}
                   className="flex justify-between text-sm border-b pb-2"
                 >
-                  <span>{ride.rideDate}</span>
+                  <span>
+                    {new Date(
+                      ride.pickupTime || ride.createdAt,
+                    ).toLocaleDateString()}{" "}
+                    - {ride.pickupAddress || "N/A"} →{" "}
+                    {ride.dropAddress || "N/A"}
+                  </span>
                   <span className="font-medium text-green-600">
                     {ride.status}
                   </span>
@@ -169,7 +193,6 @@ export default function CustomerDashboard() {
             </ul>
           )}
         </div>
-
       </div>
     </DashboardLayout>
   );

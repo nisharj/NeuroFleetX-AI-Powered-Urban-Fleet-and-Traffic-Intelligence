@@ -1,23 +1,28 @@
-// Google Maps Configuration
-// Replace with your actual Google Maps API Key
-// Get your key from: https://console.cloud.google.com/google/maps-apis
+// OpenStreetMap Configuration
+// Free and open-source map service - No API key required!
 
-const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+export const MAP_CONFIG = {
+  // Default map center (Bangalore, India)
+  defaultCenter: {
+    lat: 12.9716,
+    lng: 77.5946,
+  },
+  defaultZoom: 13,
 
-// Check if API key is valid (not placeholder or empty)
-const isValidApiKey = apiKey && 
-                      apiKey !== 'YOUR_GOOGLE_MAPS_API_KEY' && 
-                      apiKey !== 'your_google_maps_api_key_here' &&
-                      apiKey.startsWith('AIza');
+  // OpenStreetMap tile layer
+  tileLayer: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
 
-export const GOOGLE_MAPS_CONFIG = {
-  apiKey: isValidApiKey ? apiKey : null,
-  libraries: ['places', 'geometry'],
-  language: 'en',
-  region: 'US',
-  // Temporarily disabled until billing is enabled on Google Cloud Project
-  // To enable: Set this to true and enable billing at https://console.cloud.google.com/billing/enable
-  enabled: false // Changed from isValidApiKey to false
+  // Nominatim for geocoding (free, no API key required)
+  geocoding: {
+    searchUrl: "https://nominatim.openstreetmap.org/search",
+    reverseUrl: "https://nominatim.openstreetmap.org/reverse",
+  },
+
+  enabled: true,
 };
 
-export default GOOGLE_MAPS_CONFIG;
+export default MAP_CONFIG;

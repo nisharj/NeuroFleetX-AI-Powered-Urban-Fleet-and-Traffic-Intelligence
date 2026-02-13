@@ -46,11 +46,21 @@ public class BookingController {
 
             String userEmail = authentication.getName();
             logger.info("Create booking request by user={}", userEmail);
+            logger.info("Request payload: {}", request);
 
             BookingDTO booking = bookingService.createBooking(request, userEmail);
 
             logger.info("Booking created successfully: {}", booking.getBookingCode());
             return ResponseEntity.status(HttpStatus.CREATED).body(booking);
+
+        } catch (IllegalArgumentException e) {
+            logger.error("Validation error creating booking: {}", e.getMessage());
+
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "ValidationError");
+            errorResponse.put("message", e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
 
         } catch (Exception e) {
             logger.error("Error creating booking: {}", e.getMessage(), e);
@@ -163,14 +173,12 @@ public class BookingController {
             logger.warn("Error accepting booking: {}", e.getReason());
             return ResponseEntity.status(e.getStatusCode()).body(Map.of(
                     "error", e.getStatusCode().toString(),
-                    "message", e.getReason() != null ? e.getReason() : "Failed to accept"
-            ));
+                    "message", e.getReason() != null ? e.getReason() : "Failed to accept"));
         } catch (Exception e) {
             logger.error("Error accepting booking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                     "error", e.getClass().getSimpleName(),
-                    "message", e.getMessage() != null ? e.getMessage() : "Failed to accept"
-            ));
+                    "message", e.getMessage() != null ? e.getMessage() : "Failed to accept"));
         }
     }
 
@@ -302,8 +310,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
                             "error", e.getClass().getSimpleName(),
-                            "message", e.getMessage() != null ? e.getMessage() : "Failed to fetch active ride"
-                    ));
+                            "message", e.getMessage() != null ? e.getMessage() : "Failed to fetch active ride"));
         }
     }
 }

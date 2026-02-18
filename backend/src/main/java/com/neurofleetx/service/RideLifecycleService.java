@@ -4,9 +4,11 @@ import com.neurofleetx.dto.RideLifecycleDTO;
 import com.neurofleetx.model.Booking;
 import com.neurofleetx.model.DriverVerification;
 import com.neurofleetx.model.User;
+import com.neurofleetx.model.Vehicle;
 import com.neurofleetx.repository.BookingRepository;
 import com.neurofleetx.repository.DriverVerificationRepository;
 import com.neurofleetx.repository.UserRepository;
+import com.neurofleetx.repository.VehicleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -30,6 +32,7 @@ public class RideLifecycleService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final DriverVerificationRepository driverVerificationRepository;
+    private final VehicleRepository vehicleRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     // ===================== RIDE ACCEPTANCE FLOW =====================
@@ -84,10 +87,30 @@ public class RideLifecycleService {
                     "Your driver verification is not approved yet. Please complete verification and wait for admin approval.");
         }
 
+        // Check vehicle availability
+        if (driver.getVehicle() == null || driver.getVehicle().getStatus() != Vehicle.VehicleStatus.AVAILABLE) {
+            throw new RuntimeException("Driver vehicle not available");
+        }
+
+        // Ensure driver has no active rides
+        List<Booking.BookingStatus> activeStatuses = List.of(
+                Booking.BookingStatus.ACCEPTED,
+                Booking.BookingStatus.ARRIVED,
+                Booking.BookingStatus.STARTED);
+        List<Booking> activeRides = bookingRepository.findByDriverIdAndStatusIn(driver.getId(), activeStatuses);
+        if (!activeRides.isEmpty()) {
+            throw new RuntimeException("Driver already has an active ride");
+        }
+
         // Update booking
         booking.setDriver(driver);
         booking.setStatus(Booking.BookingStatus.ACCEPTED);
         booking.setAcceptedAt(LocalDateTime.now());
+
+        // Mark vehicle as booked
+        driver.getVehicle().setStatus(Vehicle.VehicleStatus.BOOKED);
+        vehicleRepository.save(driver.getVehicle());
+
         booking = bookingRepository.save(booking);
 
         log.info("Booking {} accepted by driver {}", bookingId, driverId);
@@ -132,6 +155,13 @@ public class RideLifecycleService {
 
         booking.setStartedAt(LocalDateTime.now());
         booking.setStatus(Booking.BookingStatus.STARTED);
+
+        // Mark vehicle in use
+        if (booking.getDriver() != null && booking.getDriver().getVehicle() != null) {
+            booking.getDriver().getVehicle().setStatus(Vehicle.VehicleStatus.IN_USE);
+            vehicleRepository.save(booking.getDriver().getVehicle());
+        }
+
         booking = bookingRepository.save(booking);
 
         RideLifecycleDTO dto = convertToDTO(booking);
@@ -152,6 +182,13 @@ public class RideLifecycleService {
         booking.setCompletedAt(LocalDateTime.now());
         booking.setStatus(Booking.BookingStatus.COMPLETED);
         booking.setPaymentStatus(Booking.PaymentStatus.PENDING); // Awaiting payment
+
+        // Free vehicle
+        if (booking.getDriver() != null && booking.getDriver().getVehicle() != null) {
+            booking.getDriver().getVehicle().setStatus(Vehicle.VehicleStatus.AVAILABLE);
+            vehicleRepository.save(booking.getDriver().getVehicle());
+        }
+
         booking = bookingRepository.save(booking);
 
         RideLifecycleDTO dto = convertToDTO(booking);
@@ -185,6 +222,12 @@ public class RideLifecycleService {
         booking.setCancelledBy("CUSTOMER");
         booking.setCancellationReason(reason);
 
+        // Free vehicle
+        if (booking.getDriver() != null && booking.getDriver().getVehicle() != null) {
+            booking.getDriver().getVehicle().setStatus(Vehicle.VehicleStatus.AVAILABLE);
+            vehicleRepository.save(booking.getDriver().getVehicle());
+        }
+
         // Refund logic (if payment was made)
         if (booking.getPaymentStatus() == Booking.PaymentStatus.PAID) {
             booking.setPaymentStatus(Booking.PaymentStatus.REFUNDED);
@@ -215,6 +258,12 @@ public class RideLifecycleService {
         if (booking.getStatus() == Booking.BookingStatus.STARTED ||
                 booking.getStatus() == Booking.BookingStatus.COMPLETED) {
             throw new RuntimeException("Driver cannot cancel ride after starting");
+        }
+
+        // Free vehicle before unassigning driver
+        if (booking.getDriver() != null && booking.getDriver().getVehicle() != null) {
+            booking.getDriver().getVehicle().setStatus(Vehicle.VehicleStatus.AVAILABLE);
+            vehicleRepository.save(booking.getDriver().getVehicle());
         }
 
         booking.setStatus(Booking.BookingStatus.CANCELLED_BY_DRIVER);

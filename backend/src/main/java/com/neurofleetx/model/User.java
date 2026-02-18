@@ -38,6 +38,7 @@ public class User {
 
     @NotBlank
     @Size(max = 255)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
@@ -73,7 +74,7 @@ public class User {
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "vehicle_id")
-    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler", "currentCity" })
     private Vehicle vehicle;
 
     public enum Role {

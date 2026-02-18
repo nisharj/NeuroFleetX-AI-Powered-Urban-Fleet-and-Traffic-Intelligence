@@ -1,7 +1,7 @@
 const API_URL = "http://localhost:8080/api";
 
 export async function fetchMetrics(role) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("authToken");
 
   const endpointMap = {
     ADMIN: "/admin/metrics",
@@ -12,7 +12,7 @@ export async function fetchMetrics(role) {
 
   const response = await fetch(API_URL + endpointMap[role], {
     headers: {
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   });

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.neurofleetx.dto.BookingDTO;
 import com.neurofleetx.dto.CreateBookingRequest;
+import com.neurofleetx.dto.DriverAssignmentDTO;
 import com.neurofleetx.dto.VehicleDTO;
 import com.neurofleetx.model.Booking;
 import com.neurofleetx.model.User;
@@ -43,6 +44,7 @@ public class BookingService {
     private final RouteService routeService;
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final DriverLoadOptimizationService driverLoadOptimizationService;
 
     /**
      * ✅ Create booking
@@ -128,7 +130,7 @@ public class BookingService {
             }
 
             booking.setVehicle(vehicle);
-            booking.setStatus(Booking.BookingStatus.CONFIRMED); 
+            booking.setStatus(Booking.BookingStatus.CONFIRMED);
             hourlyRate = vehicle.getPricePerHour();
 
             // ✅ lock vehicle immediately
@@ -159,7 +161,8 @@ public class BookingService {
         BigDecimal ratePerKm = new BigDecimal("10.00");
 
         if (vehicle != null
-                && (vehicle.getType() == Vehicle.VehicleType.ELECTRICAL_VEHICLE || vehicle.getType() == Vehicle.VehicleType.BIKE)) {
+                && (vehicle.getType() == Vehicle.VehicleType.ELECTRICAL_VEHICLE
+                        || vehicle.getType() == Vehicle.VehicleType.BIKE)) {
             ratePerKm = new BigDecimal("5.00");
         }
 
@@ -222,8 +225,45 @@ public class BookingService {
                     "Database error while saving booking: " + (root != null ? root : "unknown"));
         }
 
+        // ✅ AUTO-ASSIGN OPTIMAL DRIVER for ride-hailing bookings
+        if (booking.getVehicle() == null && booking.getPickupLatitude() != null
+                && booking.getPickupLongitude() != null) {
+            try {
+                logger.info("Auto-assigning optimal driver for booking {}", booking.getBookingCode());
+
+                DriverAssignmentDTO optimalDriver = driverLoadOptimizationService.findOptimalDriver(
+                        booking.getRequestedVehicleType(),
+                        booking.getPickupLatitude().doubleValue(),
+                        booking.getPickupLongitude().doubleValue());
+
+                if (optimalDriver != null) {
+                    logger.info("Auto-assigned driver {} to booking {}",
+                            optimalDriver.getDriverName(), booking.getBookingCode());
+
+                    User driver = userRepository.findById(optimalDriver.getDriverId())
+                            .orElse(null);
+
+                    if (driver != null && driver.getVehicle() != null) {
+                        booking.setDriver(driver);
+                        booking.setVehicle(driver.getVehicle());
+                        booking.setStatus(Booking.BookingStatus.ACCEPTED);
+                        booking.setAcceptedAt(LocalDateTime.now());
+                        booking = bookingRepository.save(booking);
+
+                        logger.info("Successfully auto-assigned driver {} to booking {}",
+                                driver.getName(), booking.getBookingCode());
+                    }
+                } else {
+                    logger.info("No eligible driver found for auto-assignment, broadcasting to all drivers");
+                }
+            } catch (Exception e) {
+                logger.error("Error during driver auto-assignment: {}", e.getMessage(), e);
+                // Continue with normal broadcast flow if auto-assignment fails
+            }
+        }
+
         // ✅ Notify drivers only for ride-hailing bookings
-        if (booking.getVehicle() == null) {
+        if (booking.getVehicle() == null || booking.getStatus() == Booking.BookingStatus.BROADCASTED) {
             try {
                 BookingDTO dto = convertToDTO(booking);
 
@@ -275,9 +315,11 @@ public class BookingService {
 
         // ensure driver has no active rides
         List<Booking.BookingStatus> activeStatuses = List.of(
+                Booking.BookingStatus.CONFIRMED,
                 Booking.BookingStatus.ACCEPTED,
                 Booking.BookingStatus.ARRIVED,
-                Booking.BookingStatus.STARTED);
+                Booking.BookingStatus.STARTED,
+                Booking.BookingStatus.IN_PROGRESS);
 
         List<Booking> active = bookingRepository.findByDriverIdAndStatusIn(driver.getId(), activeStatuses);
         if (!active.isEmpty()) {
@@ -377,8 +419,9 @@ public class BookingService {
             throw new RuntimeException("Unauthorized driver");
         }
 
-        if (booking.getStatus() != Booking.BookingStatus.STARTED) {
-            throw new RuntimeException("Booking not in STARTED state");
+        if (booking.getStatus() != Booking.BookingStatus.STARTED
+                && booking.getStatus() != Booking.BookingStatus.IN_PROGRESS) {
+            throw new RuntimeException("Booking not in STARTED/IN_PROGRESS state");
         }
 
         booking.setCompletedAt(LocalDateTime.now());
@@ -614,6 +657,7 @@ public class BookingService {
         return R * c;
     }
 
+    @Transactional
     public BookingDTO getDriverActiveRide(String driverEmail) {
         if (driverEmail == null || driverEmail.isBlank()) {
             return null;
@@ -622,20 +666,30 @@ public class BookingService {
         User driver = userRepository.findByEmail(driverEmail)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "Driver not found"
-                ));
+                        "Driver not found"));
 
         Booking booking = bookingRepository.findActiveRideForDriver(driver.getId())
                 .orElse(null);
 
-        if (booking == null) return null;
+        if (booking == null) {
+            // ✅ Self-healing: if vehicle is BOOKED/IN_USE but no active ride, reset to AVAILABLE
+            if (driver.getVehicle() != null
+                    && driver.getVehicle().getStatus() != Vehicle.VehicleStatus.AVAILABLE) {
+                logger.warn("Self-healing: Driver {} has vehicle in {} state but no active ride. Resetting to AVAILABLE.",
+                        driverEmail, driver.getVehicle().getStatus());
+                driver.getVehicle().setStatus(Vehicle.VehicleStatus.AVAILABLE);
+                vehicleRepository.save(driver.getVehicle());
+            }
+            return null;
+        }
 
         // ✅ Extra filter (recommended) → only active statuses
         List<Booking.BookingStatus> activeStatuses = List.of(
+                Booking.BookingStatus.CONFIRMED,
                 Booking.BookingStatus.ACCEPTED,
                 Booking.BookingStatus.ARRIVED,
-                Booking.BookingStatus.STARTED
-        );
+                Booking.BookingStatus.STARTED,
+                Booking.BookingStatus.IN_PROGRESS);
 
         if (!activeStatuses.contains(booking.getStatus())) {
             return null;
@@ -644,5 +698,35 @@ public class BookingService {
         return convertToDTO(booking);
     }
 
+    @Transactional(readOnly = true)
+    public BookingDTO getCustomerActiveBooking(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            return null;
+        }
+
+        User customer = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Customer not found"));
+
+        Booking booking = bookingRepository.findActiveRideForCustomer(customer.getId())
+                .orElse(null);
+
+        if (booking == null)
+            return null;
+
+        // ✅ Only return bookings with active statuses
+        List<Booking.BookingStatus> activeStatuses = List.of(
+                Booking.BookingStatus.BROADCASTED,
+                Booking.BookingStatus.ACCEPTED,
+                Booking.BookingStatus.ARRIVED,
+                Booking.BookingStatus.STARTED);
+
+        if (!activeStatuses.contains(booking.getStatus())) {
+            return null;
+        }
+
+        return convertToDTO(booking);
+    }
 
 }

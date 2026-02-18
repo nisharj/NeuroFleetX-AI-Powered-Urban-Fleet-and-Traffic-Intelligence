@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import MetricCard from "../MetricCard";
 import { apiFetch } from "../../api/api";
 import DashboardLayout from "../Layout/DashboardLayout";
@@ -8,6 +8,16 @@ import {
   FaHistory,
   FaCar,
   FaPlusCircle,
+  FaMapMarkerAlt,
+  FaRoad,
+  FaDollarSign,
+  FaClock,
+  FaTimesCircle,
+  FaCheckCircle,
+  FaBarcode,
+  FaBroadcastTower,
+  FaUserCheck,
+  FaCarSide,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -15,32 +25,76 @@ import { useNavigate } from "react-router-dom";
 const normalizeStatus = (status) =>
   typeof status === "string" ? status.trim().toUpperCase() : "";
 
+// ===== ACTIVE STATUS LIST =====
+const ACTIVE_STATUSES = [
+  "PENDING",
+  "BROADCASTED",
+  "CONFIRMED",
+  "ACCEPTED",
+  "ARRIVED",
+  "IN_PROGRESS",
+  "STARTED",
+];
+
+const STATUS_CONFIG = {
+  PENDING: { label: "Pending", color: "bg-yellow-100 text-yellow-700", icon: FaClock },
+  BROADCASTED: { label: "Finding Driver", color: "bg-orange-100 text-orange-700", icon: FaBroadcastTower },
+  CONFIRMED: { label: "Confirmed", color: "bg-blue-100 text-blue-700", icon: FaCheckCircle },
+  ACCEPTED: { label: "Driver Assigned", color: "bg-indigo-100 text-indigo-700", icon: FaUserCheck },
+  ARRIVED: { label: "Driver Arrived", color: "bg-purple-100 text-purple-700", icon: FaMapMarkerAlt },
+  STARTED: { label: "In Progress", color: "bg-green-100 text-green-700", icon: FaCarSide },
+  IN_PROGRESS: { label: "In Progress", color: "bg-green-100 text-green-700", icon: FaCarSide },
+  COMPLETED: { label: "Completed", color: "bg-gray-100 text-gray-700", icon: FaCheckCircle },
+};
+
 export default function CustomerDashboard() {
   const navigate = useNavigate();
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
-  // ===== FETCH BOOKINGS =====
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const res = await apiFetch("/api/customer/bookings");
-        if (!res || !res.ok) throw new Error();
-        const data = await res.json();
-        console.log("📊 Customer Dashboard - Fetched bookings:", data);
-        console.log("📊 Sample booking structure:", data[0]);
-        setBookings(data);
-      } catch {
-        setError("Failed to load booking data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBookings();
+  // ===== FETCH BOOKINGS (with polling) =====
+  const fetchBookings = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/customer/bookings");
+      if (!res || !res.ok) throw new Error();
+      const data = await res.json();
+      setBookings(data);
+      setError("");
+    } catch {
+      setError("Failed to load booking data");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // ===== INIT + POLLING (every 5s like driver dashboard) =====
+  useEffect(() => {
+    fetchBookings();
+    const interval = setInterval(fetchBookings, 5000);
+    return () => clearInterval(interval);
+  }, [fetchBookings]);
+
+  // ===== CANCEL BOOKING =====
+  const cancelBooking = async (bookingId) => {
+    if (!window.confirm("Are you sure you want to cancel this ride?")) return;
+    setCancelling(true);
+    try {
+      const res = await apiFetch(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "Customer cancelled" }),
+      });
+      if (res && res.ok) {
+        fetchBookings();
+      }
+    } catch (err) {
+      console.error("Cancel error:", err);
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // ===== NORMALIZED DATA =====
   const normalizedBookings = bookings.map((b) => ({
@@ -51,29 +105,19 @@ export default function CustomerDashboard() {
   const totalBookings = normalizedBookings.length;
 
   const activeBookings = normalizedBookings.filter((b) =>
-    [
-      "PENDING",
-      "BROADCASTED",
-      "ACCEPTED",
-      "ARRIVED",
-      "IN_PROGRESS",
-      "STARTED",
-    ].includes(b.status),
+    ACTIVE_STATUSES.includes(b.status),
   );
 
   const completedBookings = normalizedBookings.filter(
     (b) => b.status === "COMPLETED",
   );
 
-  console.log("📊 Total bookings:", totalBookings);
-  console.log("📊 Active bookings:", activeBookings.length, activeBookings);
-  console.log(
-    "📊 Completed bookings:",
-    completedBookings.length,
-    completedBookings,
-  );
+  // Sort active bookings by most recent first
+  const sortedActive = activeBookings
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-  const activeRide = activeBookings[0] || null;
+  const activeRide = sortedActive[0] || null;
 
   const recentRides = completedBookings
     .slice()
@@ -119,28 +163,142 @@ export default function CustomerDashboard() {
         </div>
 
         {/* ===== ACTIVE RIDE ===== */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Active Ride</h2>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <FaPlayCircle className="text-green-600" /> Active Ride
+            </h2>
+            {activeRide && (() => {
+              const cfg = STATUS_CONFIG[activeRide.status] || STATUS_CONFIG.PENDING;
+              const Icon = cfg.icon;
+              return (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 ${cfg.color}`}>
+                  <Icon className="text-xs" /> {cfg.label}
+                </span>
+              );
+            })()}
+          </div>
 
-          {error ? (
-            <p className="text-red-500 text-sm">{error}</p>
-          ) : activeRide ? (
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-medium">
-                  Pickup: {activeRide.pickupAddress || "N/A"}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Drop: {activeRide.dropAddress || "N/A"}
-                </p>
+          <div className="p-6">
+            {error ? (
+              <p className="text-red-500 text-sm">{error}</p>
+            ) : activeRide ? (
+              <div className="space-y-5">
+                {/* Booking Code + Type */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {activeRide.bookingCode && (
+                    <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-mono">
+                      <FaBarcode className="text-xs" /> {activeRide.bookingCode}
+                    </span>
+                  )}
+                  {activeRide.requestedVehicleType && (
+                    <span className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                      <FaCar className="text-xs" /> {activeRide.requestedVehicleType}
+                    </span>
+                  )}
+                </div>
+
+                {/* Status Progress Bar */}
+                <div className="flex items-center gap-1">
+                  {["BROADCASTED", "ACCEPTED", "ARRIVED", "STARTED"].map((step, i) => {
+                    const statusOrder = ["PENDING", "BROADCASTED", "CONFIRMED", "ACCEPTED", "ARRIVED", "STARTED", "IN_PROGRESS"];
+                    const currentIdx = statusOrder.indexOf(activeRide.status);
+                    const stepIdx = statusOrder.indexOf(step);
+                    const isActive = stepIdx <= currentIdx;
+                    return (
+                      <div key={step} className="flex-1">
+                        <div className={`h-1.5 rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-200'}`} />
+                        <p className={`text-[10px] mt-1 text-center ${isActive ? 'text-green-700 font-semibold' : 'text-gray-400'}`}>
+                          {step === "BROADCASTED" ? "Searching" : step === "ACCEPTED" ? "Assigned" : step === "ARRIVED" ? "Arrived" : "In Ride"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Route Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex flex-col items-center mt-1">
+                      <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white shadow" />
+                      <div className="w-0.5 h-8 bg-gray-300" />
+                      <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Pickup</p>
+                        <p className="text-gray-900 font-semibold">
+                          {activeRide.pickupAddress || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Drop-off</p>
+                        <p className="text-gray-900 font-semibold">
+                          {activeRide.dropAddress || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ride Details Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {activeRide.distanceKm != null && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <FaRoad className="mx-auto text-indigo-500 mb-1" />
+                      <p className="text-xs text-gray-500">Distance</p>
+                      <p className="text-gray-900 font-bold">{activeRide.distanceKm} km</p>
+                    </div>
+                  )}
+                  {activeRide.totalCost != null && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <FaDollarSign className="mx-auto text-green-500 mb-1" />
+                      <p className="text-xs text-gray-500">Fare</p>
+                      <p className="text-green-600 font-bold">{"\u20B9"}{activeRide.totalCost}</p>
+                    </div>
+                  )}
+                  {activeRide.driverName && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <FaUserCheck className="mx-auto text-blue-500 mb-1" />
+                      <p className="text-xs text-gray-500">Driver</p>
+                      <p className="text-gray-900 font-semibold text-xs">{activeRide.driverName}</p>
+                    </div>
+                  )}
+                  {activeRide.acceptedAt && (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <FaClock className="mx-auto text-purple-500 mb-1" />
+                      <p className="text-xs text-gray-500">Accepted At</p>
+                      <p className="text-gray-900 font-semibold text-xs">
+                        {new Date(activeRide.acceptedAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Cancel Button (only before ride starts) */}
+                {["PENDING", "BROADCASTED", "CONFIRMED", "ACCEPTED", "ARRIVED"].includes(activeRide.status) && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => cancelBooking(activeRide.id)}
+                      disabled={cancelling}
+                      className="flex items-center justify-center gap-2 bg-red-50 text-red-600 border border-red-200 px-5 py-2.5 rounded-xl hover:bg-red-100 transition-colors font-medium w-full"
+                    >
+                      <FaTimesCircle /> {cancelling ? "Cancelling..." : "Cancel Ride"}
+                    </button>
+                  </div>
+                )}
               </div>
-              <span className="px-4 py-1 rounded-full bg-green-100 text-green-700 text-sm">
-                {activeRide.status}
-              </span>
-            </div>
-          ) : (
-            <p className="text-gray-500">No active booking</p>
-          )}
+            ) : (
+              <div className="text-center py-8">
+                <FaCar className="mx-auto text-4xl text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">No active booking</p>
+                <p className="text-gray-400 text-sm mt-1">Book a ride to get started</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ===== QUICK ACTIONS ===== */}

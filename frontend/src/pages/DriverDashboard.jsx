@@ -22,7 +22,7 @@ function DriverDashboard({ user, onLogout }) {
   const fetchAccountStatus = async () => {
     try {
       // Fetch user details to get account approval status
-      const response = await apiFetch("/user/me");
+      const response = await apiFetch("/api/user/me");
       if (response.ok) {
         const userData = await response.json();
         setAccountStatus(userData.approvalStatus);
@@ -35,7 +35,7 @@ function DriverDashboard({ user, onLogout }) {
   // ✅ Fetch verification status
   const fetchVerificationStatus = async () => {
     try {
-      const response = await apiFetch("/driver/verification/status");
+      const response = await apiFetch("/api/driver/verification/status");
       if (response.ok) {
         const data = await response.json();
         setVerificationStatus(

@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class BookingController {
@@ -86,18 +86,6 @@ public class BookingController {
         String userEmail = authentication.getName();
         List<BookingDTO> bookings = bookingService.getUserBookings(userEmail);
         return ResponseEntity.ok(bookings);
-    }
-
-    /**
-     * ✅ Rental availability check
-     */
-    @GetMapping("/vehicles/available")
-    public ResponseEntity<List<VehicleDTO>> getAvailableVehicles(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endTime) {
-
-        List<VehicleDTO> vehicles = bookingService.getAvailableVehicles(startTime, endTime);
-        return ResponseEntity.ok(vehicles);
     }
 
     /**
@@ -298,19 +286,82 @@ public class BookingController {
             String driverEmail = authentication.getName();
             BookingDTO booking = bookingService.getDriverActiveRide(driverEmail);
 
-            // ✅ better response instead of NO_CONTENT
-            if (booking == null) {
-                return ResponseEntity.ok(null);
-            }
-
+            // ✅ return null safely instead of throwing exception
             return ResponseEntity.ok(booking);
 
         } catch (Exception e) {
             logger.error("Error fetching driver active ride: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "error", e.getClass().getSimpleName(),
-                            "message", e.getMessage() != null ? e.getMessage() : "Failed to fetch active ride"));
+            // Return null instead of 500 error
+            return ResponseEntity.ok(null);
+        }
+    }
+
+    /**
+     * ✅ Driver pending ride requests (broadcasted bookings for this driver)
+     */
+    @GetMapping("/bookings/driver/pending")
+    public ResponseEntity<?> getDriverPending(Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            // Get pending ride-hailing bookings
+            List<BookingDTO> pendingBookings = bookingService.getPendingRideHailingBookings();
+            return ResponseEntity.ok(pendingBookings != null ? pendingBookings : List.of());
+
+        } catch (Exception e) {
+            logger.error("Error fetching driver pending bookings: {}", e.getMessage(), e);
+            // Return empty list instead of error
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * ✅ Customer bookings (all bookings for the logged-in customer)
+     */
+    @GetMapping("/bookings/customer")
+    public ResponseEntity<?> getCustomerBookings(Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            String userEmail = authentication.getName();
+            List<BookingDTO> bookings = bookingService.getUserBookings(userEmail);
+            return ResponseEntity.ok(bookings != null ? bookings : List.of());
+
+        } catch (Exception e) {
+            logger.error("Error fetching customer bookings: {}", e.getMessage(), e);
+            // Return empty list instead of error
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
+    /**
+     * ✅ Customer active booking
+     * returns booking if customer has an active rental or ride
+     */
+    @GetMapping("/bookings/customer/active")
+    public ResponseEntity<?> getCustomerActive(Authentication authentication) {
+        try {
+            if (authentication == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            String userEmail = authentication.getName();
+            BookingDTO booking = bookingService.getCustomerActiveBooking(userEmail);
+
+            // Return null safely instead of throwing exception
+            return ResponseEntity.ok(booking);
+
+        } catch (Exception e) {
+            logger.error("Error fetching customer active booking: {}", e.getMessage(), e);
+            // Return null instead of error
+            return ResponseEntity.ok(null);
         }
     }
 }

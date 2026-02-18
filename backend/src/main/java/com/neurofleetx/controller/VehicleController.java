@@ -4,7 +4,6 @@ import com.neurofleetx.dto.MessageResponse;
 import com.neurofleetx.model.Vehicle;
 import com.neurofleetx.service.VehicleService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +18,7 @@ public class VehicleController {
 
     private final VehicleService vehicleService;
 
-    public VehicleController(VehicleService vehicleService){
+    public VehicleController(VehicleService vehicleService) {
         this.vehicleService = vehicleService;
     }
 
@@ -29,7 +28,6 @@ public class VehicleController {
         List<Vehicle> vehicles = vehicleService.getAllVehicles();
         return ResponseEntity.ok(vehicles);
     }
-
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER', 'CUSTOMER')")
@@ -51,7 +49,6 @@ public class VehicleController {
         }
     }
 
-
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER')")
     public ResponseEntity<?> updateVehicle(@PathVariable Long id, @Valid @RequestBody Vehicle vehicleDetails) {
@@ -66,7 +63,6 @@ public class VehicleController {
         }
     }
 
-   
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deleteVehicle(@PathVariable Long id) {
@@ -78,14 +74,12 @@ public class VehicleController {
         }
     }
 
-  
     @GetMapping("/available")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER', 'CUSTOMER')")
     public ResponseEntity<List<Vehicle>> getAvailableVehicles() {
         List<Vehicle> vehicles = vehicleService.getAvailableVehicles();
         return ResponseEntity.ok(vehicles);
     }
-
 
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER')")
@@ -99,7 +93,6 @@ public class VehicleController {
         }
     }
 
-   
     @GetMapping("/type/{type}")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER', 'CUSTOMER')")
     public ResponseEntity<List<Vehicle>> getVehiclesByType(@PathVariable String type) {
@@ -119,7 +112,6 @@ public class VehicleController {
         return ResponseEntity.ok(vehicles);
     }
 
-    
     @GetMapping("/maintenance")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER')")
     public ResponseEntity<List<Vehicle>> getVehiclesNeedingMaintenance() {
@@ -142,7 +134,6 @@ public class VehicleController {
         }
     }
 
-    
     @PatchMapping("/{id}/location")
     @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER', 'DRIVER')")
     public ResponseEntity<?> updateVehicleLocation(

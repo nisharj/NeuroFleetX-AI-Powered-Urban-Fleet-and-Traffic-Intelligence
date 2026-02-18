@@ -1,7 +1,7 @@
 const BASE_URL = "http://localhost:8080";
 
 export async function apiFetch(endpoint, options = {}) {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("authToken");
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,

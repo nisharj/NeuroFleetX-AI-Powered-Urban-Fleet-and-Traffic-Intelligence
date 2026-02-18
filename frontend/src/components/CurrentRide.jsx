@@ -22,7 +22,7 @@ function CurrentRide() {
       }
 
       // ✅ Backend endpoint: driver active ride
-      const res = await api.get("/v1/bookings/driver/active");
+      const res = await api.get("/bookings/driver/active");
       const data = res?.data || null;
 
       // ✅ Hide if null or completed/expired
@@ -67,7 +67,7 @@ function CurrentRide() {
     try {
       setActionLoading(true);
 
-      await api.post(`/v1/bookings/${activeRide.id}/arrived`);
+      await api.post(`/bookings/${activeRide.id}/arrived`);
       showToast("✅ Marked as Arrived", "success");
 
       // ✅ Auto refresh
@@ -92,7 +92,7 @@ function CurrentRide() {
     try {
       setActionLoading(true);
 
-      await api.post(`/v1/bookings/${activeRide.id}/start`);
+      await api.post(`/bookings/${activeRide.id}/start`);
       showToast("🚗 Ride started", "success");
 
       // ✅ Auto refresh
@@ -102,7 +102,10 @@ function CurrentRide() {
       window.dispatchEvent(new Event("driverRideChanged"));
     } catch (err) {
       console.error("Start ride error:", err?.response?.data || err?.message);
-      showToast(err?.response?.data?.message || "Failed to start ride", "error");
+      showToast(
+        err?.response?.data?.message || "Failed to start ride",
+        "error",
+      );
     } finally {
       setActionLoading(false);
     }
@@ -119,7 +122,7 @@ function CurrentRide() {
     try {
       setActionLoading(true);
 
-      await api.post(`/v1/bookings/${activeRide.id}/complete`);
+      await api.post(`/bookings/${activeRide.id}/complete`);
       showToast("✅ Ride completed successfully", "success");
 
       // ✅ Auto refresh
@@ -128,7 +131,10 @@ function CurrentRide() {
       // ✅ notify other components
       window.dispatchEvent(new Event("driverRideChanged"));
     } catch (err) {
-      console.error("Complete ride error:", err?.response?.data || err?.message);
+      console.error(
+        "Complete ride error:",
+        err?.response?.data || err?.message,
+      );
       showToast(
         err?.response?.data?.message || "Failed to complete ride",
         "error",
@@ -176,7 +182,10 @@ function CurrentRide() {
     return (
       <div className="driver-section-card">
         <h3 className="driver-section-title">Current Trip</h3>
-        <div className="driver-section-content skeleton" style={{ height: 120 }}>
+        <div
+          className="driver-section-content skeleton"
+          style={{ height: 120 }}
+        >
           <div className="skeleton-shimmer"></div>
         </div>
       </div>

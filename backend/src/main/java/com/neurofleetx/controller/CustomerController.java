@@ -57,41 +57,11 @@ public class CustomerController {
 
             String userEmail = auth.getName();
             logger.info("Customer bookings request from user: {}", userEmail);
-            logger.info("User authorities: {}", auth.getAuthorities());
 
-            // Find user by email
-            var optionalUser = userRepository.findByEmail(userEmail);
+            // Use BookingService to return DTOs (avoids lazy-loading serialization errors)
+            List<BookingDTO> bookings = bookingService.getUserBookings(userEmail);
 
-            if (optionalUser.isEmpty()) {
-                logger.error("User not found in database: {}", userEmail);
-                return ResponseEntity.status(404)
-                        .body(new MessageResponse("Error: User not found"));
-            }
-
-            User customer = optionalUser.get();
-            logger.info("Customer found: id={}, name={}, email={}",
-                    customer.getId(), customer.getName(), customer.getEmail());
-
-            // Fetch bookings for this customer
-            List<Booking> bookings = null;
-            try {
-                bookings = bookingRepository.findByUserIdOrderByCreatedAtDesc(customer.getId());
-                logger.info("Found {} bookings for customer {}",
-                        bookings != null ? bookings.size() : 0, customer.getId());
-            } catch (Exception dbException) {
-                logger.error("Database error fetching bookings: {}", dbException.getMessage(), dbException);
-                // Return empty list if database query fails
-                logger.info("Returning empty list due to database error");
-                return ResponseEntity.ok(Collections.emptyList());
-            }
-
-            // Handle null result
-            if (bookings == null) {
-                logger.warn("Booking repository returned null, returning empty list");
-                return ResponseEntity.ok(Collections.emptyList());
-            }
-
-            logger.info("Successfully retrieved {} bookings", bookings.size());
+            logger.info("Successfully retrieved {} bookings for {}", bookings.size(), userEmail);
             logger.info("=== CUSTOMER BOOKINGS SUCCESS ===");
 
             return ResponseEntity.ok(bookings);
@@ -99,10 +69,8 @@ public class CustomerController {
         } catch (Exception e) {
             logger.error("=== CUSTOMER BOOKINGS ERROR ===");
             logger.error("Error fetching customer bookings: {}", e.getMessage(), e);
-            logger.error("Stack trace:", e);
 
             // Return safe empty list instead of 500 error
-            logger.info("Returning empty list due to unexpected error");
             return ResponseEntity.ok(Collections.emptyList());
         }
     }
@@ -151,18 +119,22 @@ public class CustomerController {
             long completedBookings = 0;
 
             try {
-                List<Booking> allBookings = bookingRepository.findByUserId(customer.getId());
+                // Use BookingService to get DTOs (avoids lazy-loading issues)
+                List<BookingDTO> allBookings = bookingService.getUserBookings(customer.getEmail());
                 totalBookings = allBookings != null ? allBookings.size() : 0;
 
                 if (allBookings != null) {
                     activeBookings = allBookings.stream()
-                            .filter(b -> b.getStatus() == Booking.BookingStatus.PENDING ||
-                                    b.getStatus() == Booking.BookingStatus.ACCEPTED ||
-                                    b.getStatus() == Booking.BookingStatus.STARTED)
+                            .filter(b -> {
+                                String s = b.getStatus();
+                                return "PENDING".equals(s) || "BROADCASTED".equals(s) ||
+                                        "ACCEPTED".equals(s) || "ARRIVED".equals(s) ||
+                                        "STARTED".equals(s) || "IN_PROGRESS".equals(s);
+                            })
                             .count();
 
                     completedBookings = allBookings.stream()
-                            .filter(b -> b.getStatus() == Booking.BookingStatus.COMPLETED)
+                            .filter(b -> "COMPLETED".equals(b.getStatus()))
                             .count();
                 }
 

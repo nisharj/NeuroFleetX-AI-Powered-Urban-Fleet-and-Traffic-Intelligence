@@ -1,11 +1,33 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
+import api from "../services/api";
 
 export default function DriverRideRequests() {
   const [pendingRides, setPendingRides] = useState([]);
   const [activeRide, setActiveRide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [vehicleType, setVehicleType] = useState("SEDAN");
+  const [driverProfile, setDriverProfile] = useState(null);
+
+  // Fetch driver profile to get their vehicle type
+  useEffect(() => {
+    const fetchDriverProfile = async () => {
+      try {
+        const res = await api.get("/v1/driver/profile");
+        if (res.data) {
+          setDriverProfile(res.data);
+          // Set the vehicle type from driver's profile if available
+          if (res.data.vehicle?.type) {
+            setVehicleType(res.data.vehicle.type);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch driver profile:", error);
+      }
+    };
+
+    fetchDriverProfile();
+  }, []);
 
   useEffect(() => {
     fetchRides();
@@ -22,6 +44,9 @@ export default function DriverRideRequests() {
       if (pendingRes.ok) {
         const pendingData = await pendingRes.json();
         setPendingRides(Array.isArray(pendingData) ? pendingData : []);
+      } else {
+        console.error("Failed to fetch pending rides:", pendingRes.status);
+        setPendingRides([]);
       }
 
       // Fetch active ride
@@ -31,9 +56,14 @@ export default function DriverRideRequests() {
         setActiveRide(activeData);
       } else if (activeRes.status === 204) {
         setActiveRide(null);
+      } else {
+        console.error("Failed to fetch active ride:", activeRes.status);
+        setActiveRide(null);
       }
     } catch (error) {
       console.error("Error fetching rides:", error);
+      setPendingRides([]);
+      setActiveRide(null);
     } finally {
       setLoading(false);
     }

@@ -1,10 +1,7 @@
 package com.neurofleetx.controller;
 
 import com.neurofleetx.dto.MessageResponse;
-import com.neurofleetx.model.User;
 import com.neurofleetx.model.Vehicle;
-import com.neurofleetx.repository.BookingRepository;
-import com.neurofleetx.repository.UserRepository;
 import com.neurofleetx.repository.VehicleRepository;
 import com.neurofleetx.service.VehicleService;
 import jakarta.validation.Valid;
@@ -34,12 +31,6 @@ public class FleetController {
 
     @Autowired
     private VehicleService vehicleService;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private BookingRepository bookingRepository;
 
     /**
      * Get fleet manager dashboard metrics

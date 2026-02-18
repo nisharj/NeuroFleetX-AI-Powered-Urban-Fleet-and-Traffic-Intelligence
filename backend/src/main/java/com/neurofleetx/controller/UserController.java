@@ -29,7 +29,7 @@ public class UserController {
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
         try {
             String email = authentication.getName();
-            User user = userRepository.findByEmail(email)
+            User user = userRepository.findByEmailWithVehicle(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             logger.info("User info requested: email={}, role={}, approvalStatus={}",

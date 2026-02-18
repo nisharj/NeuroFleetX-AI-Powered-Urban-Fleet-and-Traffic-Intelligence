@@ -1,6 +1,7 @@
 package com.neurofleetx.controller;
 
 import com.neurofleetx.model.User;
+import com.neurofleetx.model.Vehicle;
 import com.neurofleetx.repository.UserRepository;
 import com.neurofleetx.service.DriverService;
 import lombok.RequiredArgsConstructor;
@@ -28,10 +29,10 @@ public class AdminDriverController {
     private final UserRepository userRepository;
 
     /**
-     * Get all drivers pending approval
+     * Get all drivers pending account approval (Phase 1)
      * Accessible by ADMIN and FLEET_MANAGER
      */
-    @GetMapping("/pending")
+    @GetMapping({ "/pending", "/pending-account-approval" })
     public ResponseEntity<?> getPendingDrivers() {
         try {
             List<User> pendingDrivers = userRepository.findByRoleAndApprovalStatus(
@@ -142,8 +143,9 @@ public class AdminDriverController {
 
     /**
      * Get all drivers with their status
+     * Accessible via /all or root path
      */
-    @GetMapping("/all")
+    @GetMapping({ "/all", "" })
     public ResponseEntity<?> getAllDrivers() {
         try {
             List<User> allDrivers = userRepository.findByRole(User.Role.DRIVER);
@@ -158,11 +160,15 @@ public class AdminDriverController {
                         driverInfo.put("approvalStatus", driver.getApprovalStatus().name());
                         driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
                         driverInfo.put("isActive", driver.getIsActive());
+                        driverInfo.put("createdAt", driver.getCreatedAt());
 
                         if (driver.getVehicle() != null) {
-                            driverInfo.put("vehicleName", driver.getVehicle().getName());
-                            driverInfo.put("vehicleType", driver.getVehicle().getType().name());
-                            driverInfo.put("vehicleStatus", driver.getVehicle().getStatus().name());
+                            Map<String, Object> vehicleInfo = new HashMap<>();
+                            vehicleInfo.put("id", driver.getVehicle().getId());
+                            vehicleInfo.put("name", driver.getVehicle().getName());
+                            vehicleInfo.put("type", driver.getVehicle().getType().name());
+                            vehicleInfo.put("status", driver.getVehicle().getStatus().name());
+                            driverInfo.put("vehicle", vehicleInfo);
                         }
 
                         return driverInfo;
@@ -176,6 +182,151 @@ public class AdminDriverController {
             Map<String, String> errorResponse = new HashMap<>();
             errorResponse.put("error", e.getClass().getSimpleName());
             errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Failed to get drivers");
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * PHASE 1: Approve driver account (allows login, but not ride access yet)
+     */
+    @PostMapping("/{driverId}/approve-account")
+    public ResponseEntity<?> approveDriverAccount(@PathVariable Long driverId) {
+        try {
+            logger.info("Phase 1 - Approve account: driverId={}", driverId);
+
+            User driver = userRepository.findById(driverId)
+                    .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+            if (driver.getRole() != User.Role.DRIVER) {
+                throw new RuntimeException("User is not a driver");
+            }
+
+            driver.setApprovalStatus(User.ApprovalStatus.ACCOUNT_APPROVED);
+            driver = userRepository.save(driver);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message",
+                    "Driver account approved. Driver can now login but cannot receive rides until ride eligibility is approved.");
+            response.put("driverId", driver.getId());
+            response.put("driverName", driver.getName());
+            response.put("approvalStatus", driver.getApprovalStatus().name());
+            response.put("phase", "PHASE_1_COMPLETE");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error approving driver account: {}", e.getMessage(), e);
+
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getClass().getSimpleName());
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Failed to approve driver account");
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * PHASE 2: Approve driver for ride eligibility (allows receiving ride requests)
+     * This is the final approval that allows driver to receive rides
+     */
+    @PostMapping("/{driverId}/approve-rides")
+    public ResponseEntity<?> approveDriverForRides(@PathVariable Long driverId) {
+        try {
+            logger.info("Phase 2 - Approve for rides: driverId={}", driverId);
+
+            User driver = userRepository.findById(driverId)
+                    .orElseThrow(() -> new RuntimeException("Driver not found"));
+
+            if (driver.getRole() != User.Role.DRIVER) {
+                throw new RuntimeException("User is not a driver");
+            }
+
+            if (!Boolean.TRUE.equals(driver.getDetailsSubmitted())) {
+                throw new RuntimeException("Driver has not submitted vehicle details and verification documents");
+            }
+
+            if (driver.getVehicle() == null) {
+                throw new RuntimeException("Driver does not have a vehicle registered");
+            }
+
+            // Set to fully APPROVED status (Phase 2 complete)
+            driver.setApprovalStatus(User.ApprovalStatus.APPROVED);
+
+            // Set vehicle to AVAILABLE
+            driver.getVehicle().setStatus(Vehicle.VehicleStatus.AVAILABLE);
+
+            driver = userRepository.save(driver);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Driver approved for ride eligibility. Driver can now receive ride requests.");
+            response.put("driverId", driver.getId());
+            response.put("driverName", driver.getName());
+            response.put("approvalStatus", driver.getApprovalStatus().name());
+            response.put("phase", "PHASE_2_COMPLETE");
+            response.put("vehicleStatus", driver.getVehicle().getStatus().name());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("Error approving driver for rides: {}", e.getMessage(), e);
+
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getClass().getSimpleName());
+            errorResponse.put("message",
+                    e.getMessage() != null ? e.getMessage() : "Failed to approve driver for rides");
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    /**
+     * Get drivers pending ride approval (already have account approval, submitted
+     * documents)
+     */
+    @GetMapping("/pending-ride-approval")
+    public ResponseEntity<?> getDriversPendingRideApproval() {
+        try {
+            List<User> pendingRideDrivers = userRepository.findByRoleAndApprovalStatus(
+                    User.Role.DRIVER,
+                    User.ApprovalStatus.ACCOUNT_APPROVED);
+
+            // Filter only those who have submitted details
+            List<Map<String, Object>> driverList = pendingRideDrivers.stream()
+                    .filter(driver -> Boolean.TRUE.equals(driver.getDetailsSubmitted()))
+                    .map(driver -> {
+                        Map<String, Object> driverInfo = new HashMap<>();
+                        driverInfo.put("id", driver.getId());
+                        driverInfo.put("name", driver.getName());
+                        driverInfo.put("email", driver.getEmail());
+                        driverInfo.put("phone", driver.getPhone());
+                        driverInfo.put("licenseNumber", driver.getLicenseNumber());
+                        driverInfo.put("approvalStatus", driver.getApprovalStatus().name());
+                        driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
+                        driverInfo.put("createdAt", driver.getCreatedAt());
+
+                        if (driver.getVehicle() != null) {
+                            Map<String, Object> vehicleInfo = new HashMap<>();
+                            vehicleInfo.put("id", driver.getVehicle().getId());
+                            vehicleInfo.put("name", driver.getVehicle().getName());
+                            vehicleInfo.put("type", driver.getVehicle().getType().name());
+                            vehicleInfo.put("model", driver.getVehicle().getModel());
+                            vehicleInfo.put("manufacturer", driver.getVehicle().getManufacturer());
+                            vehicleInfo.put("year", driver.getVehicle().getYear());
+                            vehicleInfo.put("seats", driver.getVehicle().getSeats());
+                            vehicleInfo.put("status", driver.getVehicle().getStatus().name());
+                            driverInfo.put("vehicle", vehicleInfo);
+                        }
+
+                        return driverInfo;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(driverList);
+        } catch (Exception e) {
+            logger.error("Error getting drivers pending ride approval: {}", e.getMessage(), e);
+
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getClass().getSimpleName());
+            errorResponse.put("message", e.getMessage() != null ? e.getMessage() : "Failed to get pending drivers");
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }

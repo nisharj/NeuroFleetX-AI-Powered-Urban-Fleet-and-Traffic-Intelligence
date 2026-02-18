@@ -75,15 +75,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/ws/**").permitAll()
                         .requestMatchers("/topic/**").permitAll()
                         .requestMatchers("/api/routes/**").permitAll()
+                        .requestMatchers("/api/driver-optimization/**").permitAll()
 
                         // Rides endpoints - authenticated customers and drivers
                         .requestMatchers("/api/rides/**").authenticated()
                         .requestMatchers("/rides/**").authenticated()
 
+                        // Bookings endpoints - authenticated users
+                        .requestMatchers("/api/bookings/**").authenticated()
+
                         // Admin only endpoints - Update: some admin endpoints are now shared with Fleet
                         // Manager
                         .requestMatchers("/admin/**").hasAnyRole("ADMIN", "FLEET_MANAGER")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "FLEET_MANAGER")
                         .requestMatchers("/users/**").hasAnyRole("ADMIN", "FLEET_MANAGER")
+                        .requestMatchers("/api/v1/drivers/**").hasAnyRole("ADMIN", "FLEET_MANAGER", "DRIVER")
 
                         // Fleet Manager endpoints
                         .requestMatchers("/vehicles/**").hasAnyRole("ADMIN", "FLEET_MANAGER")
@@ -95,6 +101,8 @@ public class SecurityConfig {
                         // Customer endpoints
                         .requestMatchers("/bookings/**").authenticated()
                         .requestMatchers("/api/v1/bookings/**").authenticated()
+                        .requestMatchers("/api/vehicles/**").authenticated()
+                        .requestMatchers("/api/v1/vehicles/**").authenticated()
 
                         // Analytics endpoints
                         .requestMatchers("/analytics/**").hasAnyRole("ADMIN", "FLEET_MANAGER")

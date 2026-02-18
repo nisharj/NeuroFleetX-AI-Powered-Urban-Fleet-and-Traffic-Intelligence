@@ -1,6 +1,7 @@
 package com.neurofleetx.controller;
 
 import com.neurofleetx.dto.MessageResponse;
+import com.neurofleetx.dto.UserDTO;
 import com.neurofleetx.model.User;
 import com.neurofleetx.model.Vehicle;
 import com.neurofleetx.repository.BookingRepository;
@@ -19,6 +20,7 @@ import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -340,26 +342,33 @@ public class AdminController {
             if (role != null && !role.isEmpty()) {
                 try {
                     User.Role roleEnum = User.Role.valueOf(role.toUpperCase());
-                    users = userRepository.findByRole(roleEnum);
+                    users = userRepository.findByRoleWithVehicle(roleEnum);
                     logger.info("Found {} users with role {}", users.size(), roleEnum);
                 } catch (IllegalArgumentException e) {
                     logger.error("Invalid role: {}", role);
                     return ResponseEntity.badRequest()
-                            .body(new MessageResponse("Invalid role: " + role));
+                            .body(new MessageResponse("Invalid role value: " + role
+                                    + ". Valid roles are: ADMIN, DRIVER, CUSTOMER, FLEET_MANAGER"));
                 }
             } else {
                 // Return all users except ADMIN
-                users = userRepository.findAll().stream()
+                users = userRepository.findAllWithVehicle().stream()
                         .filter(u -> u.getRole() != User.Role.ADMIN)
-                        .toList();
+                        .collect(Collectors.toList());
                 logger.info("Found {} total users (excluding admins)", users.size());
             }
 
-            return ResponseEntity.ok(users);
+            // Convert to DTOs to avoid lazy loading issues
+            List<UserDTO> userDTOs = users.stream()
+                    .map(UserDTO::fromUser)
+                    .collect(Collectors.toList());
+
+            logger.info("Successfully returning {} users as DTOs", userDTOs.size());
+            return ResponseEntity.ok(userDTOs);
         } catch (Exception e) {
             logger.error("Error fetching users: ", e);
             return ResponseEntity.status(500)
-                    .body(new MessageResponse("Error fetching users: " + e.getMessage()));
+                    .body(new MessageResponse("Failed to fetch users: " + e.getMessage()));
         }
     }
 
@@ -407,6 +416,43 @@ public class AdminController {
             logger.error("Error updating user status: ", e);
             return ResponseEntity.status(500)
                     .body(new MessageResponse("Error updating user status: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete user
+     * DELETE /api/admin/users/:id
+     */
+    @DeleteMapping("/users/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deleteUser(@PathVariable Long userId) {
+        try {
+            logger.info("=== DELETE USER ===");
+            logger.info("User ID: {}", userId);
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+            // Prevent deleting admin users
+            if (user.getRole() == User.Role.ADMIN) {
+                logger.warn("Attempt to delete admin user blocked");
+                return ResponseEntity.status(403)
+                        .body(new MessageResponse("Cannot delete admin users"));
+            }
+
+            String userName = user.getName();
+            String userEmail = user.getEmail();
+
+            userRepository.delete(user);
+
+            logger.info("User deleted successfully: {} ({})", userName, userEmail);
+
+            return ResponseEntity.ok(new MessageResponse(
+                    "User '" + userName + "' deleted successfully"));
+        } catch (Exception e) {
+            logger.error("Error deleting user: ", e);
+            return ResponseEntity.status(500)
+                    .body(new MessageResponse("Error deleting user: " + e.getMessage()));
         }
     }
 }

@@ -9,16 +9,16 @@ const ACTIVE_STATUSES = [
   "ACCEPTED",
   "ARRIVED",
   "STARTED",
-  "IN_PROGRESS",   
-  "ONGOING"        
+  "IN_PROGRESS",
+  "ONGOING",
 ];
-
 
 function ActiveRide() {
   const navigate = useNavigate();
 
   const [activeRide, setActiveRide] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -45,14 +45,27 @@ function ActiveRide() {
         return;
       }
 
-      // ✅ Fetch all user bookings then filter active
-      const res = await api.get("/v1/bookings/user");
+      // ✅ Fetch driver's active ride from correct endpoint
+      const res = await api.get("/bookings/driver/active");
 
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = res?.data || null;
 
-      const active = data.find((b) => ACTIVE_STATUSES.includes(b.status));
+      // ✅ Hide if null or completed/expired
+      if (
+        !data ||
+        [
+          "COMPLETED",
+          "EXPIRED",
+          "CANCELLED_BY_DRIVER",
+          "CANCELLED_BY_CUSTOMER",
+          "CANCELLED_BY_ADMIN",
+        ].includes(data.status)
+      ) {
+        setActiveRide(null);
+        return;
+      }
 
-      setActiveRide(active || null);
+      setActiveRide(data);
     } catch (err) {
       const status = err.response?.status;
 
@@ -64,7 +77,16 @@ function ActiveRide() {
         return;
       }
 
-      console.error("ActiveRide fetch error:", err.response?.data || err.message);
+      // ✅ No active ride is not an error
+      if (status === 404 || status === 204) {
+        setActiveRide(null);
+        return;
+      }
+
+      console.error(
+        "ActiveRide fetch error:",
+        err.response?.data || err.message,
+      );
       setActiveRide(null);
     } finally {
       setLoading(false);
@@ -74,6 +96,85 @@ function ActiveRide() {
   useEffect(() => {
     fetchActiveRide();
   }, [fetchActiveRide]);
+
+  // ✅ Auto refresh ActiveRide if accept happens
+  useEffect(() => {
+    const onRideChanged = () => fetchActiveRide();
+    window.addEventListener("driverRideChanged", onRideChanged);
+
+    return () => {
+      window.removeEventListener("driverRideChanged", onRideChanged);
+    };
+  }, [fetchActiveRide]);
+
+  // ✅ Ride Actions
+  const handleMarkArrived = async () => {
+    if (!activeRide?.id) return;
+
+    try {
+      setActionLoading(true);
+      await api.post(`/bookings/${activeRide.id}/arrived`);
+      showToast("✅ Marked as Arrived", "success");
+      await fetchActiveRide();
+      window.dispatchEvent(new Event("driverRideChanged"));
+    } catch (err) {
+      console.error("Mark arrived error:", err?.response?.data || err?.message);
+      showToast(
+        err?.response?.data?.message || "Failed to mark arrived",
+        "error",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStartRide = async () => {
+    if (!activeRide?.id) return;
+
+    try {
+      setActionLoading(true);
+      await api.post(`/bookings/${activeRide.id}/start`);
+      showToast("🚗 Ride started", "success");
+      await fetchActiveRide();
+      window.dispatchEvent(new Event("driverRideChanged"));
+    } catch (err) {
+      console.error("Start ride error:", err?.response?.data || err?.message);
+      showToast(
+        err?.response?.data?.message || "Failed to start ride",
+        "error",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteRide = async () => {
+    if (!activeRide?.id) return;
+
+    const confirmComplete = window.confirm(
+      "Are you sure you want to complete this ride?",
+    );
+    if (!confirmComplete) return;
+
+    try {
+      setActionLoading(true);
+      await api.post(`/bookings/${activeRide.id}/complete`);
+      showToast("✅ Ride completed successfully", "success");
+      await fetchActiveRide();
+      window.dispatchEvent(new Event("driverRideChanged"));
+    } catch (err) {
+      console.error(
+        "Complete ride error:",
+        err?.response?.data || err?.message,
+      );
+      showToast(
+        err?.response?.data?.message || "Failed to complete ride",
+        "error",
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const formatDate = (iso) => {
     if (!iso) return "-";
@@ -139,7 +240,9 @@ function ActiveRide() {
                   {activeRide.status}
                 </span>
 
-                <span style={{ marginLeft: 10, fontSize: 12, color: "#64748B" }}>
+                <span
+                  style={{ marginLeft: 10, fontSize: 12, color: "#64748B" }}
+                >
                   {formatDate(activeRide.createdAt)}
                 </span>
               </div>
@@ -150,6 +253,61 @@ function ActiveRide() {
                   Booking: <b>{activeRide.bookingCode}</b>
                 </p>
               )}
+
+              {/* ✅ ACTION BUTTONS */}
+              <div
+                style={{
+                  marginTop: 16,
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                {activeRide.status === "ACCEPTED" && (
+                  <button
+                    className="btn btn-primary"
+                    disabled={actionLoading}
+                    onClick={handleMarkArrived}
+                  >
+                    {actionLoading ? "Updating..." : "Mark Arrived"}
+                  </button>
+                )}
+
+                {activeRide.status === "ARRIVED" && (
+                  <button
+                    className="btn btn-success"
+                    disabled={actionLoading}
+                    onClick={handleStartRide}
+                  >
+                    {actionLoading ? "Updating..." : "Start Ride"}
+                  </button>
+                )}
+
+                {(activeRide.status === "STARTED" ||
+                  activeRide.status === "IN_PROGRESS" ||
+                  activeRide.status === "ONGOING") && (
+                  <button
+                    className="btn btn-success"
+                    disabled={actionLoading}
+                    onClick={handleCompleteRide}
+                    style={{ background: "#16a34a" }}
+                  >
+                    {actionLoading ? "Completing..." : "Complete Ride"}
+                  </button>
+                )}
+
+                <button
+                  className="btn btn-ghost"
+                  disabled={loading || actionLoading}
+                  onClick={fetchActiveRide}
+                >
+                  Refresh
+                </button>
+              </div>
+
+              <p style={{ marginTop: 8, fontSize: 12, color: "#94a3b8" }}>
+                *Buttons appear based on ride status
+              </p>
             </div>
           </div>
         </div>

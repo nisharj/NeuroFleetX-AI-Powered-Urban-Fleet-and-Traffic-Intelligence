@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/Layout/DashboardLayout";
 import {
   FaMapMarkerAlt,
@@ -8,11 +9,13 @@ import {
   FaUsers,
   FaCar,
   FaRoad,
+  FaRoute,
 } from "react-icons/fa";
 import { apiFetch } from "../api/api";
 // import MapPicker from "../components/maps/MapPicker";
 import LocationSearch from "../components/maps/LocationSearch";
 import RouteMap from "../components/RouteMap";
+import RouteVisualization from "../components/RouteVisualization";
 import { reverseGeocode } from "../utils/googleMapsLoader";
 
 // ================= HELPERS =================
@@ -26,6 +29,7 @@ const getCurrentTime = () => {
 };
 
 export default function BookRidePage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     pickup: "",
     pickupLat: "",
@@ -48,6 +52,8 @@ export default function BookRidePage() {
     distanceKm: null,
     durationMin: null,
   });
+  const [optimizedRoutes, setOptimizedRoutes] = useState(null);
+  const [showRoutePreview, setShowRoutePreview] = useState(false);
 
   // ================= CALCULATE FARE =================
   const calculateEstimatedFare = () => {
@@ -100,15 +106,6 @@ export default function BookRidePage() {
     setApiError("");
   };
 
-  const handlePickupSelect = ({ address, lat, lng }) => {
-    setForm({
-      ...form,
-      pickup: address,
-      pickupLat: lat,
-      pickupLng: lng,
-    });
-  };
-
   //================== USE CURRENT LOCATION =================
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -133,6 +130,38 @@ export default function BookRidePage() {
       },
       () => alert("Unable to fetch location"),
     );
+  };
+
+  //================== PREVIEW ROUTE OPTIMIZATION =================
+  const handlePreviewRoute = async () => {
+    if (!form.pickupLat || !form.pickupLng || !form.dropLat || !form.dropLng) {
+      alert("Please select both pickup and drop locations first");
+      return;
+    }
+
+    try {
+      const res = await apiFetch(
+        `/api/routes/optimize?pickupLat=${form.pickupLat}&pickupLng=${form.pickupLng}&dropLat=${form.dropLat}&dropLng=${form.dropLng}`,
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        setOptimizedRoutes(data);
+        setShowRoutePreview(true);
+
+        if (data.bestRoute) {
+          setRouteInfo({
+            distanceKm: data.bestRoute.distance / 1000,
+            durationMin: data.bestRoute.duration / 60,
+          });
+        }
+      } else {
+        alert("Failed to fetch route optimization");
+      }
+    } catch (err) {
+      console.error("Route optimization error:", err);
+      alert("Error fetching route preview");
+    }
   };
 
   // ================= VALIDATION =================
@@ -181,18 +210,15 @@ export default function BookRidePage() {
     setApiError("");
 
     try {
-      // Construct pickupTime as ISO datetime string
       let pickupTime;
       if (form.rideType === "NOW") {
         pickupTime = new Date().toISOString();
       } else {
-        // Combine date and time for scheduled rides
         pickupTime = new Date(
           `${form.rideDate}T${form.rideTime}`,
         ).toISOString();
       }
 
-      // Map frontend form fields to backend DTO fields
       const payload = {
         pickupAddress: form.pickup,
         dropAddress: form.drop,
@@ -204,12 +230,12 @@ export default function BookRidePage() {
         passengerCount: parseInt(form.passengerCount),
         contactNumber: form.contactNumber,
         pickupTime: pickupTime,
-        bookingType: form.rideType.toLowerCase(), // "now" or "scheduled"
+        bookingType: form.rideType.toLowerCase(),
       };
 
       console.log("Sending booking payload:", payload);
 
-      const res = await apiFetch("/api/v1/bookings", {
+      const res = await apiFetch("/api/bookings", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -229,22 +255,8 @@ export default function BookRidePage() {
 
       alert("🚗 Ride booked successfully!");
 
-      setForm({
-        pickup: "",
-        pickupLat: "",
-        pickupLng: "",
-        drop: "",
-        dropLat: "",
-        dropLng: "",
-        vehicleType: "",
-        rideType: "NOW",
-        rideDate: getTodayDate(),
-        rideTime: getCurrentTime(),
-        passengerCount: 1,
-        contactNumber: "",
-      });
-      setErrors({});
-      setRouteInfo({ distanceKm: null, durationMin: null });
+      // Navigate back to customer dashboard to see active ride
+      navigate("/customer");
     } catch (err) {
       console.error("Booking error:", err);
       setApiError("Network error. Please try again. " + err.message);
@@ -450,14 +462,25 @@ export default function BookRidePage() {
             )}
 
             {/* Submit */}
-            <button
-              disabled={loading}
-              className={`w-full py-3 rounded-lg text-white font-medium ${
-                loading ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
-              }`}
-            >
-              {loading ? "Booking..." : "Confirm Ride"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handlePreviewRoute}
+                disabled={!form.pickupLat || !form.dropLat}
+                className="flex-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 transition"
+              >
+                <FaRoute /> Preview Route
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`flex-1 py-3 rounded-lg text-white font-medium ${
+                  loading ? "bg-gray-400" : "bg-indigo-600 hover:bg-indigo-700"
+                }`}
+              >
+                {loading ? "Booking..." : "Confirm Ride"}
+              </button>
+            </div>
           </form>
         </div>
 
@@ -466,10 +489,22 @@ export default function BookRidePage() {
           {/* Route Map */}
           <div className="bg-white rounded-xl shadow overflow-hidden">
             <div style={{ height: "350px" }}>
-              {form.pickupLat &&
-              form.pickupLng &&
-              form.dropLat &&
-              form.dropLng ? (
+              {showRoutePreview && optimizedRoutes ? (
+                <RouteVisualization
+                  pickup={{
+                    lat: parseFloat(form.pickupLat),
+                    lng: parseFloat(form.pickupLng),
+                  }}
+                  drop={{
+                    lat: parseFloat(form.dropLat),
+                    lng: parseFloat(form.dropLng),
+                  }}
+                  routes={optimizedRoutes}
+                />
+              ) : form.pickupLat &&
+                form.pickupLng &&
+                form.dropLat &&
+                form.dropLng ? (
                 <RouteMap
                   pickup={{
                     lat: parseFloat(form.pickupLat),
@@ -490,6 +525,16 @@ export default function BookRidePage() {
                 </div>
               )}
             </div>
+            {showRoutePreview && (
+              <div className="p-3 bg-indigo-50 border-t">
+                <button
+                  onClick={() => setShowRoutePreview(false)}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  ← Back to simple view
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Ride Summary */}

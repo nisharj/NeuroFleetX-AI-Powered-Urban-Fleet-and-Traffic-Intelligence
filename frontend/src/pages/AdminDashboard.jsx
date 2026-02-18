@@ -5,7 +5,7 @@ import Toast from "../components/Toast";
 import PendingDriversList from "../components/PendingDriversList";
 import AdminBookings from "../components/AdminBookings";
 import UserManagement from "../components/UserManagement";
-import AdminDriverApprovals from "../components/AdminDriverApprovals";
+import AdminDriverApprovalPanel from "../components/AdminDriverApprovalPanel";
 
 function AdminDashboard({ user, onLogout }) {
   const [view, setView] = useState("overview"); // 'overview', 'users', 'drivers', 'approvals'
@@ -97,110 +97,161 @@ function AdminDashboard({ user, onLogout }) {
 
       <div className="content-wrapper">
         {/* Header */}
-        <div className="mb-xl animate-fadeIn">
-          <h1 className="text-gradient mb-sm">Admin Dashboard</h1>
-          <p className="text-secondary">System Overview and User Management</p>
+        <div className="mb-8 animate-fadeIn">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+            Admin Dashboard
+          </h1>
+          <p className="text-gray-600 text-lg">
+            System Overview and User Management
+          </p>
         </div>
 
-        {/* View Tabs */}
-        <div className="driver-tabs mb-lg">
+        {/* View Tabs - Enhanced */}
+        <div className="flex gap-2 mb-8 bg-gray-100 p-2 rounded-xl">
           <button
-            className={`driver-tab ${view === "overview" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 ${
+              view === "overview"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("overview")}
           >
-            Overview
+            <span className="flex items-center justify-center gap-2">
+              <span>📊</span>
+              <span>Overview</span>
+            </span>
           </button>
           <button
-            className={`driver-tab ${view === "users" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 ${
+              view === "users"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("users")}
           >
-            User Management
+            <span className="flex items-center justify-center gap-2">
+              <span>👤</span>
+              <span>Users</span>
+            </span>
           </button>
           <button
-            className={`driver-tab ${view === "approvals" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 relative ${
+              view === "approvals"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("approvals")}
           >
-            Account Approvals (Phase 1)
-            {pendingApprovals.length > 0 && (
-              <span
-                className="badge badge-error ml-sm"
-                style={{ fontSize: "0.7rem", padding: "2px 6px" }}
-              >
-                {pendingApprovals.length}
-              </span>
-            )}
+            <span className="flex items-center justify-center gap-2">
+              <span>⏳</span>
+              <span>Account Approvals</span>
+              {pendingApprovals.length > 0 && (
+                <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-bold animate-pulse">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </span>
           </button>
           <button
-            className={`driver-tab ${view === "driver-approvals" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 ${
+              view === "driver-approvals"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("driver-approvals")}
           >
-            Ride Eligibility (Phase 2)
+            <span className="flex items-center justify-center gap-2">
+              <span>🚗</span>
+              <span>Ride Eligibility</span>
+            </span>
           </button>
           <button
-            className={`driver-tab ${view === "drivers" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 ${
+              view === "drivers"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("drivers")}
           >
-            Driver Management
+            <span className="flex items-center justify-center gap-2">
+              <span>🚘</span>
+              <span>Drivers</span>
+            </span>
           </button>
           <button
-            className={`driver-tab ${view === "bookings" ? "active" : ""}`}
+            className={`flex-1 py-3 px-4 font-semibold rounded-lg transition-all duration-200 ${
+              view === "bookings"
+                ? "bg-white text-indigo-600 shadow-md transform scale-105"
+                : "text-gray-600 hover:text-indigo-600 hover:bg-white/50"
+            }`}
             onClick={() => setView("bookings")}
           >
-            Bookings
+            <span className="flex items-center justify-center gap-2">
+              <span>📅</span>
+              <span>Bookings</span>
+            </span>
           </button>
         </div>
 
         {/* Overview Tab */}
         {view === "overview" && (
-          <div className="grid grid-cols-3 gap-xl mb-xl animate-fadeIn">
-            {/* Stats Cards */}
-            <div className="glass-card">
-              <div className="flex justify-between items-center mb-md">
-                <span className="text-secondary">Total Users</span>
-                <span className="text-2xl">👥</span>
+          <div className="grid grid-cols-3 gap-6 mb-xl animate-fadeIn">
+            {/* Total Users Card */}
+            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 text-white transform hover:-translate-y-1">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-indigo-100 font-semibold">
+                  Total Users
+                </span>
+                <span className="text-4xl">👥</span>
               </div>
-              <div className="text-4xl font-bold">{stats.totalUsers}</div>
-              <div className="text-sm text-secondary mt-xs">
-                {stats.activeUsers} active
+              <div className="text-5xl font-bold mb-2">{stats.totalUsers}</div>
+              <div className="text-sm text-indigo-100 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                <span>{stats.activeUsers} active users</span>
               </div>
             </div>
 
+            {/* Pending Approvals Card */}
             <div
-              className="glass-card"
-              style={{ cursor: "pointer" }}
+              className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 text-white transform hover:-translate-y-1 cursor-pointer"
               onClick={() => setView("approvals")}
             >
-              <div className="flex justify-between items-center mb-md">
-                <span className="text-secondary">
-                  Pending Account Approvals
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-orange-100 font-semibold">
+                  Pending Approvals
                 </span>
-                <span className="text-2xl">⏳</span>
+                <span className="text-4xl">⏳</span>
               </div>
-              <div className="text-4xl font-bold text-accent-orange">
+              <div className="text-5xl font-bold mb-2">
                 {stats.pendingApprovals}
               </div>
-              <div className="text-sm text-secondary mt-xs">
-                Phase 1: Account Registration
+              <div className="text-sm text-orange-100">
+                Phase 1: Account Registration →
               </div>
             </div>
 
-            <div className="glass-card">
-              <div className="flex justify-between items-center mb-md">
-                <span className="text-secondary">System Roles</span>
-                <span className="text-2xl">🛡️</span>
+            {/* System Roles Card */}
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 text-white transform hover:-translate-y-1">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-emerald-100 font-semibold">
+                  System Roles
+                </span>
+                <span className="text-4xl">🛡️</span>
               </div>
-              <div className="flex flex-col gap-xs">
-                <div className="flex justify-between">
-                  <span>Managers</span>
-                  <span className="font-bold">{stats.fleetManagers}</span>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
+                  <span className="font-medium">Managers</span>
+                  <span className="font-bold text-lg">
+                    {stats.fleetManagers}
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Drivers</span>
-                  <span className="font-bold">{stats.drivers}</span>
+                <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
+                  <span className="font-medium">Drivers</span>
+                  <span className="font-bold text-lg">{stats.drivers}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Customers</span>
-                  <span className="font-bold">{stats.customers}</span>
+                <div className="flex justify-between items-center bg-white/10 rounded-lg px-3 py-2 backdrop-blur-sm">
+                  <span className="font-medium">Customers</span>
+                  <span className="font-bold text-lg">{stats.customers}</span>
                 </div>
               </div>
             </div>
@@ -217,18 +268,7 @@ function AdminDashboard({ user, onLogout }) {
         {/* Driver Verifications Tab (Phase 2) */}
         {view === "driver-approvals" && (
           <div className="animate-fadeIn">
-            <div className="mb-lg">
-              <h3 className="section-title mb-sm">
-                Phase 2: Ride Eligibility Approvals
-              </h3>
-              <p className="text-secondary">
-                Review and approve driver verification details (license,
-                vehicle, insurance). Drivers must complete Phase 1 (account
-                approval) before submitting verification. Only drivers with both
-                approvals can accept ride requests.
-              </p>
-            </div>
-            <AdminDriverApprovals />
+            <AdminDriverApprovalPanel />
           </div>
         )}
 

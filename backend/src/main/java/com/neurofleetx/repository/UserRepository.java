@@ -32,4 +32,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 WHERE u.email = :email
             """)
     Optional<User> findByEmailWithVehicle(@Param("email") String email);
+
+    // Fetch all users with vehicles to avoid lazy initialization issues
+    @Query("""
+                SELECT DISTINCT u FROM User u
+                LEFT JOIN FETCH u.vehicle
+            """)
+    List<User> findAllWithVehicle();
+
+    // Fetch users by role with vehicles to avoid lazy initialization issues
+    @Query("""
+                SELECT DISTINCT u FROM User u
+                LEFT JOIN FETCH u.vehicle
+                WHERE u.role = :role
+            """)
+    List<User> findByRoleWithVehicle(@Param("role") User.Role role);
 }

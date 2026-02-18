@@ -42,6 +42,7 @@ public class Vehicle {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_city_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private City currentCity;
 
     @Column(name = "current_latitude", precision = 10, scale = 8)
@@ -119,4 +120,3 @@ public class Vehicle {
         AVAILABLE, BOOKED, IN_USE, MAINTENANCE, OFFLINE
     }
 }
-

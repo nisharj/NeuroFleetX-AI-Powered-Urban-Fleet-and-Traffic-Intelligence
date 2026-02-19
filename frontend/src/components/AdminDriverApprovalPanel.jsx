@@ -330,6 +330,9 @@ export default function AdminDriverApprovalPanel() {
                     <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                       Vehicle
                     </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                      License
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -352,10 +355,27 @@ export default function AdminDriverApprovalPanel() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={driver.approvalStatus} />
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {driver.vehicle ? (
+                          <div>
+                            <span className="font-medium">
+                              {driver.vehicle.name || driver.vehicle.type}
+                            </span>
+                            <br />
+                            <span className="text-xs text-gray-500">
+                              {driver.vehicle.manufacturer}{" "}
+                              {driver.vehicle.model} ({driver.vehicle.year}) |{" "}
+                              {driver.vehicle.fuelType} | {driver.vehicle.seats}{" "}
+                              seats |{" "}
+                              {driver.vehicle.vehicleNumber || "No plate"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No vehicle</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {driver.vehicle
-                          ? `${driver.vehicle.type} - ${driver.vehicle.status}`
-                          : "No vehicle"}
+                        {driver.licenseNumber || "N/A"}
                       </td>
                     </tr>
                   ))}
@@ -412,7 +432,13 @@ function DriverCard({ driver, phase, onApprove, onReject }) {
                   Vehicle Information
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-xs text-blue-700">Vehicle Name</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.name || "N/A"}
+                  </p>
+                </div>
                 <div>
                   <p className="text-xs text-blue-700">Type</p>
                   <p className="text-sm font-semibold text-blue-900">
@@ -423,6 +449,12 @@ function DriverCard({ driver, phase, onApprove, onReject }) {
                   <p className="text-xs text-blue-700">Model</p>
                   <p className="text-sm font-semibold text-blue-900">
                     {driver.vehicle.model || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Manufacturer</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.manufacturer || "N/A"}
                   </p>
                 </div>
                 <div>
@@ -437,7 +469,57 @@ function DriverCard({ driver, phase, onApprove, onReject }) {
                     {driver.vehicle.seats || "N/A"}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-blue-700">Fuel Type</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.fuelType || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Price/Hour</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.pricePerHour
+                      ? `₹${driver.vehicle.pricePerHour}`
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Vehicle Number</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.vehicleNumber || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Vehicle Code</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.vehicleCode || "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Battery Level</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.batteryLevel != null
+                      ? `${driver.vehicle.batteryLevel}%`
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700">Status</p>
+                  <p className="text-sm font-semibold text-blue-900">
+                    {driver.vehicle.status || "N/A"}
+                  </p>
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* Driver Address */}
+          {driver.address && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Address</p>
+              <p className="text-sm font-medium text-gray-800">
+                {driver.address}
+              </p>
             </div>
           )}
 

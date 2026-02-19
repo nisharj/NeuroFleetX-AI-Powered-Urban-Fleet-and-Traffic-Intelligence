@@ -182,8 +182,28 @@ export default function DriverVehicleDetailsForm({ user, onSubmitSuccess }) {
               </h3>
               <p className="text-yellow-700">{reason}</p>
               <p className="text-yellow-600 text-sm mt-2">
-                Your application is being reviewed by our team. You'll be
-                notified once approved.
+                Your vehicle details are being reviewed by our admin/manager
+                team. You'll be notified once approved.
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (requiresAction === "WAIT_FOR_ACCOUNT_APPROVAL") {
+      return (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <FaClock className="text-orange-600 text-3xl flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-lg font-bold text-orange-900 mb-1">
+                ⏳ Account Pending Approval
+              </h3>
+              <p className="text-orange-700">{reason}</p>
+              <p className="text-orange-600 text-sm mt-2">
+                Your account is being reviewed by our team. Once approved, you
+                can submit your vehicle details.
               </p>
             </div>
           </div>
@@ -241,9 +261,10 @@ export default function DriverVehicleDetailsForm({ user, onSubmitSuccess }) {
     );
   }
 
-  // If already approved or pending approval, show status and profile
+  // If already approved, pending approval, or pending account approval — show status and profile
   if (
     eligibilityStatus?.requiresAction === "WAIT_FOR_APPROVAL" ||
+    eligibilityStatus?.requiresAction === "WAIT_FOR_ACCOUNT_APPROVAL" ||
     eligibilityStatus?.eligible
   ) {
     return (

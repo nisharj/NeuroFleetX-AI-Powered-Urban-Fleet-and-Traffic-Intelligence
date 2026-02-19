@@ -4,6 +4,7 @@ import DashboardLayout from "../Layout/DashboardLayout.jsx";
 import MetricCard from "../MetricCard";
 import PendingApprovals from "../PendingApprovals";
 import UserManagement from "../UserManagement";
+import AdminDriverApprovalPanel from "../AdminDriverApprovalPanel";
 import { apiFetch } from "../../api/api";
 import {
   FaUsers,
@@ -14,6 +15,7 @@ import {
   FaUsersCog,
   FaChartBar,
   FaSatelliteDish,
+  FaIdCardAlt,
 } from "react-icons/fa";
 import VehicleSimulation from "../VehicleSimulation";
 
@@ -135,6 +137,18 @@ export default function AdminDashboard() {
           <FaSatelliteDish />
           <span>Vehicle Simulation</span>
         </button>
+
+        <button
+          onClick={() => setActiveView("drivers")}
+          className={`flex items-center gap-2 px-4 py-3 rounded-md font-medium transition-all ${
+            activeView === "drivers"
+              ? "bg-indigo-600 text-white shadow-md"
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}
+        >
+          <FaIdCardAlt />
+          <span>Driver Management</span>
+        </button>
       </div>
 
       {/* OVERVIEW TAB */}
@@ -225,6 +239,13 @@ export default function AdminDashboard() {
       {activeView === "vehicles" && (
         <div className="animate-fadeIn">
           <VehicleSimulation />
+        </div>
+      )}
+
+      {/* DRIVER MANAGEMENT TAB */}
+      {activeView === "drivers" && (
+        <div className="animate-fadeIn">
+          <AdminDriverApprovalPanel />
         </div>
       )}
     </DashboardLayout>

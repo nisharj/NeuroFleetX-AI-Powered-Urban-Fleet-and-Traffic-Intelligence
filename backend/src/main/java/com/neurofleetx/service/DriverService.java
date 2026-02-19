@@ -30,6 +30,7 @@ public class DriverService {
      * 4. Vehicle must be in AVAILABLE status
      * 5. Approval status must be APPROVED
      */
+    @Transactional(readOnly = true)
     public boolean isDriverEligibleForRides(Long driverId) {
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeException("Driver not found"));
@@ -127,20 +128,26 @@ public class DriverService {
                 vehicle.setBatteryLevel(request.getBatteryLevel());
             }
 
-            // Note: licensePlate is not stored in Vehicle entity currently
-            // If needed, add licensePlate column in Vehicle entity.
+            // Store license plate as vehicle number
+            if (request.getLicensePlate() != null && !request.getLicensePlate().isEmpty()) {
+                vehicle.setVehicleNumber(request.getLicensePlate());
+            } else {
+                vehicle.setVehicleNumber(vehicle.getVehicleCode());
+            }
 
             // Save vehicle
             vehicle = vehicleRepository.save(vehicle);
             logger.debug("Vehicle saved with ID: {}", vehicle.getId());
 
-            // Update driver details (legacy vehicle submission)
+            // Update driver details
             driver.setVehicle(vehicle);
             driver.setDetailsSubmitted(true);
-            // Note: Don't change approval status here - it's managed by the two-phase
-            // approval system
-            // driver.setApprovalStatus(User.ApprovalStatus.PENDING_APPROVAL); // OLD CODE
-            // REMOVED
+            // Set status to ACCOUNT_APPROVED so it appears in admin pending-ride-approval
+            // list
+            // Only admin or fleet manager can move this to APPROVED
+            if (driver.getApprovalStatus() != User.ApprovalStatus.APPROVED) {
+                driver.setApprovalStatus(User.ApprovalStatus.ACCOUNT_APPROVED);
+            }
 
             driver.setLicenseNumber(request.getLicenseNumber());
             driver.setPhone(request.getPhone());
@@ -210,6 +217,7 @@ public class DriverService {
     /**
      * Get driver eligibility status with detailed reason
      */
+    @Transactional(readOnly = true)
     public DriverEligibilityStatus getDriverEligibilityStatus(Long driverId) {
         User driver = userRepository.findById(driverId)
                 .orElseThrow(() -> new RuntimeException("Driver not found"));
@@ -241,6 +249,13 @@ public class DriverService {
             status.setEligible(false);
             status.setReason("Your account is pending admin approval");
             status.setRequiresAction("WAIT_FOR_ACCOUNT_APPROVAL");
+            return status;
+        }
+
+        if (driver.getApprovalStatus() == User.ApprovalStatus.ACCOUNT_APPROVED) {
+            status.setEligible(false);
+            status.setReason("Your vehicle details have been submitted and are pending admin/manager approval.");
+            status.setRequiresAction("WAIT_FOR_APPROVAL");
             return status;
         }
 

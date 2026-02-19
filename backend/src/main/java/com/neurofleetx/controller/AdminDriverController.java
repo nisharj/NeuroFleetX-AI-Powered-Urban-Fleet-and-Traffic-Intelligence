@@ -35,37 +35,12 @@ public class AdminDriverController {
     @GetMapping({ "/pending", "/pending-account-approval" })
     public ResponseEntity<?> getPendingDrivers() {
         try {
-            List<User> pendingDrivers = userRepository.findByRoleAndApprovalStatus(
+            List<User> pendingDrivers = userRepository.findByRoleAndApprovalStatusWithVehicle(
                     User.Role.DRIVER,
                     User.ApprovalStatus.PENDING_ACCOUNT_APPROVAL);
 
             List<Map<String, Object>> driverList = pendingDrivers.stream()
-                    .map(driver -> {
-                        Map<String, Object> driverInfo = new HashMap<>();
-                        driverInfo.put("id", driver.getId());
-                        driverInfo.put("name", driver.getName());
-                        driverInfo.put("email", driver.getEmail());
-                        driverInfo.put("phone", driver.getPhone());
-                        driverInfo.put("licenseNumber", driver.getLicenseNumber());
-                        driverInfo.put("approvalStatus", driver.getApprovalStatus().name());
-                        driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
-                        driverInfo.put("createdAt", driver.getCreatedAt());
-
-                        if (driver.getVehicle() != null) {
-                            Map<String, Object> vehicleInfo = new HashMap<>();
-                            vehicleInfo.put("name", driver.getVehicle().getName());
-                            vehicleInfo.put("type", driver.getVehicle().getType().name());
-                            vehicleInfo.put("model", driver.getVehicle().getModel());
-                            vehicleInfo.put("manufacturer", driver.getVehicle().getManufacturer());
-                            vehicleInfo.put("year", driver.getVehicle().getYear());
-                            vehicleInfo.put("seats", driver.getVehicle().getSeats());
-                            vehicleInfo.put("fuelType", driver.getVehicle().getFuelType().name());
-                            vehicleInfo.put("pricePerHour", driver.getVehicle().getPricePerHour());
-                            driverInfo.put("vehicle", vehicleInfo);
-                        }
-
-                        return driverInfo;
-                    })
+                    .map(this::buildDriverResponse)
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(driverList);
@@ -148,31 +123,10 @@ public class AdminDriverController {
     @GetMapping({ "/all", "" })
     public ResponseEntity<?> getAllDrivers() {
         try {
-            List<User> allDrivers = userRepository.findByRole(User.Role.DRIVER);
+            List<User> allDrivers = userRepository.findByRoleWithVehicle(User.Role.DRIVER);
 
             List<Map<String, Object>> driverList = allDrivers.stream()
-                    .map(driver -> {
-                        Map<String, Object> driverInfo = new HashMap<>();
-                        driverInfo.put("id", driver.getId());
-                        driverInfo.put("name", driver.getName());
-                        driverInfo.put("email", driver.getEmail());
-                        driverInfo.put("phone", driver.getPhone());
-                        driverInfo.put("approvalStatus", driver.getApprovalStatus().name());
-                        driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
-                        driverInfo.put("isActive", driver.getIsActive());
-                        driverInfo.put("createdAt", driver.getCreatedAt());
-
-                        if (driver.getVehicle() != null) {
-                            Map<String, Object> vehicleInfo = new HashMap<>();
-                            vehicleInfo.put("id", driver.getVehicle().getId());
-                            vehicleInfo.put("name", driver.getVehicle().getName());
-                            vehicleInfo.put("type", driver.getVehicle().getType().name());
-                            vehicleInfo.put("status", driver.getVehicle().getStatus().name());
-                            driverInfo.put("vehicle", vehicleInfo);
-                        }
-
-                        return driverInfo;
-                    })
+                    .map(this::buildDriverResponse)
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(driverList);
@@ -285,39 +239,14 @@ public class AdminDriverController {
     @GetMapping("/pending-ride-approval")
     public ResponseEntity<?> getDriversPendingRideApproval() {
         try {
-            List<User> pendingRideDrivers = userRepository.findByRoleAndApprovalStatus(
+            List<User> pendingRideDrivers = userRepository.findByRoleAndApprovalStatusWithVehicle(
                     User.Role.DRIVER,
                     User.ApprovalStatus.ACCOUNT_APPROVED);
 
             // Filter only those who have submitted details
             List<Map<String, Object>> driverList = pendingRideDrivers.stream()
                     .filter(driver -> Boolean.TRUE.equals(driver.getDetailsSubmitted()))
-                    .map(driver -> {
-                        Map<String, Object> driverInfo = new HashMap<>();
-                        driverInfo.put("id", driver.getId());
-                        driverInfo.put("name", driver.getName());
-                        driverInfo.put("email", driver.getEmail());
-                        driverInfo.put("phone", driver.getPhone());
-                        driverInfo.put("licenseNumber", driver.getLicenseNumber());
-                        driverInfo.put("approvalStatus", driver.getApprovalStatus().name());
-                        driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
-                        driverInfo.put("createdAt", driver.getCreatedAt());
-
-                        if (driver.getVehicle() != null) {
-                            Map<String, Object> vehicleInfo = new HashMap<>();
-                            vehicleInfo.put("id", driver.getVehicle().getId());
-                            vehicleInfo.put("name", driver.getVehicle().getName());
-                            vehicleInfo.put("type", driver.getVehicle().getType().name());
-                            vehicleInfo.put("model", driver.getVehicle().getModel());
-                            vehicleInfo.put("manufacturer", driver.getVehicle().getManufacturer());
-                            vehicleInfo.put("year", driver.getVehicle().getYear());
-                            vehicleInfo.put("seats", driver.getVehicle().getSeats());
-                            vehicleInfo.put("status", driver.getVehicle().getStatus().name());
-                            driverInfo.put("vehicle", vehicleInfo);
-                        }
-
-                        return driverInfo;
-                    })
+                    .map(this::buildDriverResponse)
                     .collect(Collectors.toList());
 
             return ResponseEntity.ok(driverList);
@@ -330,5 +259,48 @@ public class AdminDriverController {
 
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
+    }
+
+    // ======================== Shared helper ========================
+
+    /**
+     * Build a unified driver response map with full vehicle details.
+     * Used by all list endpoints to ensure consistent data.
+     */
+    private Map<String, Object> buildDriverResponse(User driver) {
+        Map<String, Object> driverInfo = new HashMap<>();
+        driverInfo.put("id", driver.getId());
+        driverInfo.put("name", driver.getName());
+        driverInfo.put("email", driver.getEmail());
+        driverInfo.put("phone", driver.getPhone());
+        driverInfo.put("address", driver.getAddress());
+        driverInfo.put("licenseNumber", driver.getLicenseNumber());
+        driverInfo.put("approvalStatus", driver.getApprovalStatus() != null ? driver.getApprovalStatus().name() : null);
+        driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
+        driverInfo.put("isActive", driver.getIsActive());
+        driverInfo.put("createdAt", driver.getCreatedAt());
+
+        if (driver.getVehicle() != null) {
+            Map<String, Object> vehicleInfo = new HashMap<>();
+            vehicleInfo.put("id", driver.getVehicle().getId());
+            vehicleInfo.put("vehicleCode", driver.getVehicle().getVehicleCode());
+            vehicleInfo.put("name", driver.getVehicle().getName());
+            vehicleInfo.put("type",
+                    driver.getVehicle().getType() != null ? driver.getVehicle().getType().name() : null);
+            vehicleInfo.put("model", driver.getVehicle().getModel());
+            vehicleInfo.put("manufacturer", driver.getVehicle().getManufacturer());
+            vehicleInfo.put("year", driver.getVehicle().getYear());
+            vehicleInfo.put("seats", driver.getVehicle().getSeats());
+            vehicleInfo.put("fuelType",
+                    driver.getVehicle().getFuelType() != null ? driver.getVehicle().getFuelType().name() : null);
+            vehicleInfo.put("pricePerHour", driver.getVehicle().getPricePerHour());
+            vehicleInfo.put("vehicleNumber", driver.getVehicle().getVehicleNumber());
+            vehicleInfo.put("batteryLevel", driver.getVehicle().getBatteryLevel());
+            vehicleInfo.put("status",
+                    driver.getVehicle().getStatus() != null ? driver.getVehicle().getStatus().name() : null);
+            driverInfo.put("vehicle", vehicleInfo);
+        }
+
+        return driverInfo;
     }
 }

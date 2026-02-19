@@ -97,6 +97,9 @@ public class Vehicle {
     @Column(name = "brake_health", nullable = false)
     private Integer brakeHealth = 100;
 
+    @Column(name = "vehicle_number", nullable = false)
+    private String vehicleNumber = "";
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

@@ -47,4 +47,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
                 WHERE u.role = :role
             """)
     List<User> findByRoleWithVehicle(@Param("role") User.Role role);
+
+    // Fetch users by role AND approval status with vehicles eagerly loaded
+    @Query("""
+                SELECT DISTINCT u FROM User u
+                LEFT JOIN FETCH u.vehicle
+                WHERE u.role = :role AND u.approvalStatus = :status
+            """)
+    List<User> findByRoleAndApprovalStatusWithVehicle(
+            @Param("role") User.Role role,
+            @Param("status") User.ApprovalStatus status);
 }

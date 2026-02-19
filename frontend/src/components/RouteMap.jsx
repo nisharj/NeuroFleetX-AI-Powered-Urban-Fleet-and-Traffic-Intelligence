@@ -138,48 +138,134 @@ export default function RouteMap({ pickup, drop, onRouteInfoChange }) {
 
     console.log("Fetching route for:", { pickup, drop });
 
-    const controller = new AbortController();
-    const fetchRoute = async () => {
-      setLoading(true);
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${drop.lng},${drop.lat}?overview=full&geometries=geojson`;
-        console.log("OSRM Request URL:", url);
-        const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) throw new Error(`OSRM error: ${res.status}`);
-        const data = await res.json();
-        if (!data.routes || !data.routes[0]) throw new Error("No route found");
+    let isCleanedUp = false;
+    const abortController = new AbortController();
 
-        const routeGeo = data.routes[0].geometry.coordinates.map((c) => [
-          c[1],
-          c[0],
-        ]);
-        const distanceKm = data.routes[0].distance / 1000; // meters -> km
-        const durationMin = data.routes[0].duration / 60; // seconds -> minutes
-
-        setRoute({ positions: routeGeo, distanceKm, durationMin });
-        console.log("Route fetched successfully:", {
-          distanceKm,
-          durationMin,
-          pointsCount: routeGeo.length,
-        });
-
-        if (onRouteInfoChangeRef.current) {
-          onRouteInfoChangeRef.current({ distanceKm, durationMin });
-        }
-      } catch (err) {
-        if (err.name === "AbortError") return;
-        console.error("Route fetch failed", err);
-        setError(err.message || "Failed to fetch route");
-        if (onRouteInfoChangeRef.current)
-          onRouteInfoChangeRef.current({ distanceKm: null, durationMin });
-      } finally {
-        setLoading(false);
-      }
+    // Haversine distance calculation
+    const haversineDistance = (lat1, lng1, lat2, lng2) => {
+      const toRad = (deg) => (deg * Math.PI) / 180;
+      const R = 6371; // Earth radius in km
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     };
 
-    fetchRoute();
+    // Generate a curved path between two points (fallback when no routing API works)
+    const generateCurvedPath = (p1, p2, numPoints = 30) => {
+      const points = [];
+      const midLat = (p1.lat + p2.lat) / 2;
+      const midLng = (p1.lng + p2.lng) / 2;
+      const dLat = p2.lat - p1.lat;
+      const dLng = p2.lng - p1.lng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+      const curveOffset = dist * 0.08;
+      const perpLat = (-dLng / dist) * curveOffset;
+      const perpLng = (dLat / dist) * curveOffset;
+      const ctrlLat = midLat + perpLat;
+      const ctrlLng = midLng + perpLng;
 
-    return () => controller.abort();
+      for (let i = 0; i <= numPoints; i++) {
+        const t = i / numPoints;
+        const lat =
+          (1 - t) * (1 - t) * p1.lat +
+          2 * (1 - t) * t * ctrlLat +
+          t * t * p2.lat;
+        const lng =
+          (1 - t) * (1 - t) * p1.lng +
+          2 * (1 - t) * t * ctrlLng +
+          t * t * p2.lng;
+        points.push([lat, lng]);
+      }
+      return points;
+    };
+
+    // Local fallback route calculation
+    const calcLocalRoute = () => {
+      const straightKm = haversineDistance(
+        pickup.lat,
+        pickup.lng,
+        drop.lat,
+        drop.lng,
+      );
+      const distanceKm = straightKm * 1.3;
+      const durationMin = (distanceKm / 40) * 60;
+      const positions = generateCurvedPath(pickup, drop);
+      return { positions, distanceKm, durationMin };
+    };
+
+    // Try fetching a real road route from OSRM servers
+    const tryOSRM = async (baseUrl) => {
+      const url = `${baseUrl}${pickup.lng},${pickup.lat};${drop.lng},${drop.lat}?overview=full&geometries=geojson`;
+      const res = await fetch(url, { signal: abortController.signal });
+      if (!res.ok) throw new Error(`OSRM error: ${res.status}`);
+      const data = await res.json();
+      if (!data.routes || !data.routes[0]) throw new Error("No route found");
+      const routeGeo = data.routes[0].geometry.coordinates.map((c) => [
+        c[1],
+        c[0],
+      ]);
+      return {
+        positions: routeGeo,
+        distanceKm: data.routes[0].distance / 1000,
+        durationMin: data.routes[0].duration / 60,
+      };
+    };
+
+    // Multiple OSRM routing servers (fallback chain)
+    const OSRM_SERVERS = [
+      "https://routing.openstreetmap.de/routed-car/route/v1/driving/",
+      "https://router.project-osrm.org/route/v1/driving/",
+    ];
+
+    const fetchRoute = async () => {
+      setLoading(true);
+
+      // Try each OSRM server in order
+      for (const server of OSRM_SERVERS) {
+        if (isCleanedUp) return;
+        try {
+          const result = await tryOSRM(server);
+          if (isCleanedUp) return;
+          setRoute(result);
+          setError(null);
+          if (onRouteInfoChangeRef.current) {
+            onRouteInfoChangeRef.current({
+              distanceKm: result.distanceKm,
+              durationMin: result.durationMin,
+            });
+          }
+          setLoading(false);
+          return; // success — stop trying
+        } catch {
+          // try next server
+        }
+      }
+
+      // All servers failed — use local calculation
+      if (isCleanedUp) return;
+      const local = calcLocalRoute();
+      setRoute(local);
+      setError(null);
+      if (onRouteInfoChangeRef.current) {
+        onRouteInfoChangeRef.current({
+          distanceKm: local.distanceKm,
+          durationMin: local.durationMin,
+        });
+      }
+      setLoading(false);
+    };
+
+    // Timeout: if no server responds in 6s total, abort and use local
+    const timeout = setTimeout(() => abortController.abort(), 6000);
+    fetchRoute().finally(() => clearTimeout(timeout));
+
+    return () => {
+      isCleanedUp = true;
+      abortController.abort();
+    };
   }, [pickup?.lat, pickup?.lng, drop?.lat, drop?.lng]); // Use primitive values only
 
   const positions = route ? route.positions : [];

@@ -492,6 +492,7 @@ public class BookingService {
     // ✅ READ APIs
     // =========================
 
+    @Transactional(readOnly = true)
     public List<BookingDTO> getUserBookings(String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -505,6 +506,7 @@ public class BookingService {
         return vehicles.stream().map(this::convertVehicleToDTO).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<BookingDTO> getAllBookings() {
         return bookingRepository.findAll()
                 .stream().map(this::convertToDTO).collect(Collectors.toList());
@@ -514,6 +516,7 @@ public class BookingService {
      * ✅ Pending ride-hailing bookings
      * (Use repository query, not findAll)
      */
+    @Transactional(readOnly = true)
     public List<BookingDTO> getPendingRideHailingBookings() {
         return bookingRepository.findPendingRideRequests()
                 .stream()
@@ -521,6 +524,7 @@ public class BookingService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<BookingDTO> getPendingRideHailingBookingsForType(String vehicleType) {
         if (vehicleType == null || vehicleType.isBlank())
             return getPendingRideHailingBookings();
@@ -541,7 +545,7 @@ public class BookingService {
         return new BookingDTO(
                 booking.getId(),
                 booking.getBookingCode(),
-                booking.getUser().getId(),
+                booking.getUser() != null ? booking.getUser().getId() : null,
                 booking.getVehicle() != null ? booking.getVehicle().getId() : null,
                 booking.getVehicle() != null ? booking.getVehicle().getName() : null,
                 booking.getPickupTime(),
@@ -552,8 +556,8 @@ public class BookingService {
                 booking.getBaseFare(),
                 booking.getDistanceKm(),
                 booking.getRatePerKm(),
-                booking.getStatus().name(),
-                booking.getPaymentStatus().name(),
+                booking.getStatus() != null ? booking.getStatus().name() : null,
+                booking.getPaymentStatus() != null ? booking.getPaymentStatus().name() : null,
                 booking.getRequestedVehicleType(),
                 booking.getPickupAddress(),
                 booking.getDropAddress(),

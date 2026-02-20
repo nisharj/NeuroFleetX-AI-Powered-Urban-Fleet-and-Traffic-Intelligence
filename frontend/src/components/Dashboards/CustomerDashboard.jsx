@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import MetricCard from "../MetricCard";
-import { apiFetch } from "../../api/api";
 import DashboardLayout from "../Layout/DashboardLayout";
 import {
   FaBook,
@@ -20,6 +19,7 @@ import {
   FaCarSide,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import bookingService from "../../services/bookingService";
 
 // ===== STATUS NORMALIZER (IMPORTANT) =====
 const normalizeStatus = (status) =>
@@ -58,13 +58,13 @@ export default function CustomerDashboard() {
   // ===== FETCH BOOKINGS (with polling) =====
   const fetchBookings = useCallback(async () => {
     try {
-      const res = await apiFetch("/api/customer/bookings");
-      if (!res || !res.ok) throw new Error();
-      const data = await res.json();
-      setBookings(data);
+      const data = await bookingService.getUserBookings();
+      setBookings(Array.isArray(data) ? data : []);
       setError("");
-    } catch {
+    } catch (err) {
+      console.error("Failed to load customer bookings:", err);
       setError("Failed to load booking data");
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -82,13 +82,8 @@ export default function CustomerDashboard() {
     if (!window.confirm("Are you sure you want to cancel this ride?")) return;
     setCancelling(true);
     try {
-      const res = await apiFetch(`/api/bookings/${bookingId}/cancel`, {
-        method: "POST",
-        body: JSON.stringify({ reason: "Customer cancelled" }),
-      });
-      if (res && res.ok) {
-        fetchBookings();
-      }
+      await bookingService.cancelBooking(bookingId, "Customer cancelled");
+      fetchBookings();
     } catch (err) {
       console.error("Cancel error:", err);
     } finally {

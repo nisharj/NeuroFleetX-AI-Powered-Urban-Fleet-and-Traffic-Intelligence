@@ -17,6 +17,7 @@ import LocationSearch from "../components/maps/LocationSearch";
 import RouteMap from "../components/RouteMap";
 import RouteVisualization from "../components/RouteVisualization";
 import { reverseGeocode } from "../utils/googleMapsLoader";
+import { showToast } from "../components/Toast";
 
 // ================= HELPERS =================
 const getTodayDate = () => {
@@ -109,7 +110,7 @@ export default function BookRidePage() {
   //================== USE CURRENT LOCATION =================
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation not supported");
+      showToast("Geolocation not supported", "error");
       return;
     }
 
@@ -128,14 +129,14 @@ export default function BookRidePage() {
           pickupLng: lng,
         }));
       },
-      () => alert("Unable to fetch location"),
+      () => showToast("Unable to fetch location", "error"),
     );
   };
 
   //================== PREVIEW ROUTE OPTIMIZATION =================
   const handlePreviewRoute = async () => {
     if (!form.pickupLat || !form.pickupLng || !form.dropLat || !form.dropLng) {
-      alert("Please select both pickup and drop locations first");
+      showToast("Please select both pickup and drop locations first", "error");
       return;
     }
 
@@ -156,11 +157,11 @@ export default function BookRidePage() {
           });
         }
       } else {
-        alert("Failed to fetch route optimization");
+        showToast("Failed to fetch route optimization", "error");
       }
     } catch (err) {
       console.error("Route optimization error:", err);
-      alert("Error fetching route preview");
+      showToast("Error fetching route preview", "error");
     }
   };
 
@@ -253,7 +254,7 @@ export default function BookRidePage() {
       const result = await res.json();
       console.log("Booking created:", result);
 
-      alert("🚗 Ride booked successfully!");
+      showToast("Ride booked successfully!", "success");
 
       // Navigate back to customer dashboard to see active ride
       navigate("/customer");

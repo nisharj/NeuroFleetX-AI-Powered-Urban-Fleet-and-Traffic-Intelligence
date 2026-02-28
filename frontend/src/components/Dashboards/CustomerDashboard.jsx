@@ -17,15 +17,15 @@ import {
   FaBroadcastTower,
   FaUserCheck,
   FaCarSide,
+  FaStar,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import bookingService from "../../services/bookingService";
+import { showToast } from "../Toast";
 
-// ===== STATUS NORMALIZER (IMPORTANT) =====
 const normalizeStatus = (status) =>
   typeof status === "string" ? status.trim().toUpperCase() : "";
 
-// ===== ACTIVE STATUS LIST =====
 const ACTIVE_STATUSES = [
   "PENDING",
   "BROADCASTED",
@@ -37,14 +37,46 @@ const ACTIVE_STATUSES = [
 ];
 
 const STATUS_CONFIG = {
-  PENDING: { label: "Pending", color: "bg-yellow-100 text-yellow-700", icon: FaClock },
-  BROADCASTED: { label: "Finding Driver", color: "bg-orange-100 text-orange-700", icon: FaBroadcastTower },
-  CONFIRMED: { label: "Confirmed", color: "bg-blue-100 text-blue-700", icon: FaCheckCircle },
-  ACCEPTED: { label: "Driver Assigned", color: "bg-indigo-100 text-indigo-700", icon: FaUserCheck },
-  ARRIVED: { label: "Driver Arrived", color: "bg-purple-100 text-purple-700", icon: FaMapMarkerAlt },
-  STARTED: { label: "In Progress", color: "bg-green-100 text-green-700", icon: FaCarSide },
-  IN_PROGRESS: { label: "In Progress", color: "bg-green-100 text-green-700", icon: FaCarSide },
-  COMPLETED: { label: "Completed", color: "bg-gray-100 text-gray-700", icon: FaCheckCircle },
+  PENDING: {
+    label: "Pending",
+    color: "bg-yellow-100 text-yellow-700",
+    icon: FaClock,
+  },
+  BROADCASTED: {
+    label: "Finding Driver",
+    color: "bg-orange-100 text-orange-700",
+    icon: FaBroadcastTower,
+  },
+  CONFIRMED: {
+    label: "Confirmed",
+    color: "bg-blue-100 text-blue-700",
+    icon: FaCheckCircle,
+  },
+  ACCEPTED: {
+    label: "Driver Assigned",
+    color: "bg-indigo-100 text-indigo-700",
+    icon: FaUserCheck,
+  },
+  ARRIVED: {
+    label: "Driver Arrived",
+    color: "bg-purple-100 text-purple-700",
+    icon: FaMapMarkerAlt,
+  },
+  STARTED: {
+    label: "In Progress",
+    color: "bg-green-100 text-green-700",
+    icon: FaCarSide,
+  },
+  IN_PROGRESS: {
+    label: "In Progress",
+    color: "bg-green-100 text-green-700",
+    icon: FaCarSide,
+  },
+  COMPLETED: {
+    label: "Completed",
+    color: "bg-gray-100 text-gray-700",
+    icon: FaCheckCircle,
+  },
 };
 
 export default function CustomerDashboard() {
@@ -55,7 +87,11 @@ export default function CustomerDashboard() {
   const [error, setError] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
-  // ===== FETCH BOOKINGS (with polling) =====
+  const [ratingRide, setRatingRide] = useState(null);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+
   const fetchBookings = useCallback(async () => {
     try {
       const data = await bookingService.getUserBookings();
@@ -70,14 +106,12 @@ export default function CustomerDashboard() {
     }
   }, []);
 
-  // ===== INIT + POLLING (every 5s like driver dashboard) =====
   useEffect(() => {
     fetchBookings();
     const interval = setInterval(fetchBookings, 5000);
     return () => clearInterval(interval);
   }, [fetchBookings]);
 
-  // ===== CANCEL BOOKING =====
   const cancelBooking = async (bookingId) => {
     if (!window.confirm("Are you sure you want to cancel this ride?")) return;
     setCancelling(true);
@@ -91,23 +125,51 @@ export default function CustomerDashboard() {
     }
   };
 
-  // ===== NORMALIZED DATA =====
+  const openRatingModal = (ride) => {
+    setRatingRide(ride);
+    setSelectedRating(ride.customerRating || 0);
+    setRatingFeedback(ride.customerFeedback || "");
+  };
+
+  const closeRatingModal = () => {
+    if (submittingRating) return;
+    setRatingRide(null);
+    setSelectedRating(0);
+    setRatingFeedback("");
+  };
+
+  const submitRating = async () => {
+    if (!ratingRide || selectedRating < 1 || selectedRating > 5) return;
+    setSubmittingRating(true);
+    try {
+      await bookingService.rateRide(
+        ratingRide.id,
+        selectedRating,
+        ratingFeedback.trim(),
+      );
+      closeRatingModal();
+      await fetchBookings();
+    } catch (err) {
+      console.error("Rate driver error:", err);
+      showToast("Failed to submit rating. Please try again.", "error");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   const normalizedBookings = bookings.map((b) => ({
     ...b,
     status: normalizeStatus(b.status),
   }));
 
   const totalBookings = normalizedBookings.length;
-
   const activeBookings = normalizedBookings.filter((b) =>
     ACTIVE_STATUSES.includes(b.status),
   );
-
   const completedBookings = normalizedBookings.filter(
     (b) => b.status === "COMPLETED",
   );
 
-  // Sort active bookings by most recent first
   const sortedActive = activeBookings
     .slice()
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -123,7 +185,6 @@ export default function CustomerDashboard() {
     )
     .slice(0, 5);
 
-  // ===== LOADING =====
   if (loading) {
     return (
       <DashboardLayout title="Customer Dashboard">
@@ -135,7 +196,6 @@ export default function CustomerDashboard() {
   return (
     <DashboardLayout title="Customer Dashboard">
       <div className="p-6 space-y-8">
-        {/* ===== METRICS ===== */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard
             title="Total Bookings"
@@ -157,7 +217,6 @@ export default function CustomerDashboard() {
           />
         </div>
 
-        {/* ===== ACTIVE RIDE ===== */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -167,7 +226,9 @@ export default function CustomerDashboard() {
               const cfg = STATUS_CONFIG[activeRide.status] || STATUS_CONFIG.PENDING;
               const Icon = cfg.icon;
               return (
-                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 ${cfg.color}`}>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 ${cfg.color}`}
+                >
                   <Icon className="text-xs" /> {cfg.label}
                 </span>
               );
@@ -179,7 +240,6 @@ export default function CustomerDashboard() {
               <p className="text-red-500 text-sm">{error}</p>
             ) : activeRide ? (
               <div className="space-y-5">
-                {/* Booking Code + Type */}
                 <div className="flex flex-wrap items-center gap-3">
                   {activeRide.bookingCode && (
                     <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-mono">
@@ -193,50 +253,6 @@ export default function CustomerDashboard() {
                   )}
                 </div>
 
-                {/* Status Progress Bar */}
-                <div className="flex items-center gap-1">
-                  {["BROADCASTED", "ACCEPTED", "ARRIVED", "STARTED"].map((step, i) => {
-                    const statusOrder = ["PENDING", "BROADCASTED", "CONFIRMED", "ACCEPTED", "ARRIVED", "STARTED", "IN_PROGRESS"];
-                    const currentIdx = statusOrder.indexOf(activeRide.status);
-                    const stepIdx = statusOrder.indexOf(step);
-                    const isActive = stepIdx <= currentIdx;
-                    return (
-                      <div key={step} className="flex-1">
-                        <div className={`h-1.5 rounded-full transition-colors ${isActive ? 'bg-green-500' : 'bg-gray-200'}`} />
-                        <p className={`text-[10px] mt-1 text-center ${isActive ? 'text-green-700 font-semibold' : 'text-gray-400'}`}>
-                          {step === "BROADCASTED" ? "Searching" : step === "ACCEPTED" ? "Assigned" : step === "ARRIVED" ? "Arrived" : "In Ride"}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Route Card */}
-                <div className="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center mt-1">
-                      <div className="w-3 h-3 rounded-full bg-green-500 border-2 border-white shadow" />
-                      <div className="w-0.5 h-8 bg-gray-300" />
-                      <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow" />
-                    </div>
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase">Pickup</p>
-                        <p className="text-gray-900 font-semibold">
-                          {activeRide.pickupAddress || "N/A"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase">Drop-off</p>
-                        <p className="text-gray-900 font-semibold">
-                          {activeRide.dropAddress || "N/A"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ride Details Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {activeRide.distanceKm != null && (
                     <div className="bg-gray-50 rounded-lg p-3 text-center">
@@ -273,7 +289,6 @@ export default function CustomerDashboard() {
                   )}
                 </div>
 
-                {/* Cancel Button (only before ride starts) */}
                 {["PENDING", "BROADCASTED", "CONFIRMED", "ACCEPTED", "ARRIVED"].includes(activeRide.status) && (
                   <div className="pt-2">
                     <button
@@ -296,10 +311,8 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        {/* ===== QUICK ACTIONS ===== */}
         <div>
           <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div
               onClick={() => navigate("/customer/book")}
@@ -318,7 +331,6 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        {/* ===== RECENT RIDES ===== */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Recent Rides</h2>
 
@@ -329,24 +341,86 @@ export default function CustomerDashboard() {
               {recentRides.map((ride) => (
                 <li
                   key={ride.id}
-                  className="flex justify-between text-sm border-b pb-2"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between text-sm border-b pb-2 gap-2"
                 >
                   <span>
-                    {new Date(
-                      ride.pickupTime || ride.createdAt,
-                    ).toLocaleDateString()}{" "}
-                    - {ride.pickupAddress || "N/A"} →{" "}
-                    {ride.dropAddress || "N/A"}
+                    {new Date(ride.pickupTime || ride.createdAt).toLocaleDateString()} - {ride.pickupAddress || "N/A"} {"->"} {ride.dropAddress || "N/A"}
                   </span>
-                  <span className="font-medium text-green-600">
-                    {ride.status}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-green-600">{ride.status}</span>
+                    {ride.customerRating ? (
+                      <span className="inline-flex items-center gap-1 text-amber-500 font-medium">
+                        <FaStar /> {ride.customerRating}/5
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => openRatingModal(ride)}
+                        className="px-3 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                      >
+                        Rate Driver
+                      </button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
       </div>
+
+      {ratingRide && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+          onClick={closeRatingModal}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-md p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold">Rate Your Driver</h3>
+            <p className="text-sm text-gray-600">
+              Ride: {ratingRide.pickupAddress || "N/A"} {"->"} {ratingRide.dropAddress || "N/A"}
+            </p>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setSelectedRating(star)}
+                  className={`text-2xl ${star <= selectedRating ? "text-amber-500" : "text-gray-300"}`}
+                  disabled={submittingRating}
+                >
+                  <FaStar />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={ratingFeedback}
+              onChange={(e) => setRatingFeedback(e.target.value)}
+              rows={3}
+              placeholder="Share feedback (optional)"
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              disabled={submittingRating}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeRatingModal}
+                className="px-4 py-2 rounded-lg border"
+                disabled={submittingRating}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRating}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:bg-gray-400"
+                disabled={submittingRating || selectedRating < 1}
+              >
+                {submittingRating ? "Submitting..." : "Submit Rating"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

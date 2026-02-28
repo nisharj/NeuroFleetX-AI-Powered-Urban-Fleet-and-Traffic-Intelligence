@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
 import api from "../services/api";
+import { showToast } from "./Toast";
 
 export default function DriverRideRequests() {
   const [pendingRides, setPendingRides] = useState([]);
@@ -79,14 +80,14 @@ export default function DriverRideRequests() {
         const data = await res.json();
         setActiveRide(data);
         await fetchRides();
-        alert("Ride accepted successfully!");
+        showToast("Ride accepted successfully!", "success");
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to accept ride");
+        showToast(error.message || "Failed to accept ride", "error");
       }
     } catch (error) {
       console.error("Error accepting ride:", error);
-      alert("Error accepting ride");
+      showToast("Error accepting ride", "error");
     }
   };
 
@@ -101,14 +102,14 @@ export default function DriverRideRequests() {
       if (res.ok) {
         const data = await res.json();
         setActiveRide(data);
-        alert("Ride started!");
+        showToast("Ride started!", "success");
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to start ride");
+        showToast(error.message || "Failed to start ride", "error");
       }
     } catch (error) {
       console.error("Error starting ride:", error);
-      alert("Error starting ride");
+      showToast("Error starting ride", "error");
     }
   };
 
@@ -122,14 +123,14 @@ export default function DriverRideRequests() {
 
       if (res.ok) {
         await fetchRides();
-        alert("Ride completed successfully!");
+        showToast("Ride completed successfully!", "success");
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to complete ride");
+        showToast(error.message || "Failed to complete ride", "error");
       }
     } catch (error) {
       console.error("Error completing ride:", error);
-      alert("Error completing ride");
+      showToast("Error completing ride", "error");
     }
   };
 
@@ -145,14 +146,14 @@ export default function DriverRideRequests() {
 
       if (res.ok) {
         await fetchRides();
-        alert("Ride cancelled");
+        showToast("Ride cancelled", "success");
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to cancel ride");
+        showToast(error.message || "Failed to cancel ride", "error");
       }
     } catch (error) {
       console.error("Error cancelling ride:", error);
-      alert("Error cancelling ride");
+      showToast("Error cancelling ride", "error");
     }
   };
 

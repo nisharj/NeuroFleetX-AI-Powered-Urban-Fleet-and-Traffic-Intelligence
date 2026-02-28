@@ -11,6 +11,7 @@ import FleetDashboard from "./components/Dashboards/FleetDashboard.jsx";
 
 import VehiclesPage from "./pages/VehiclesPage.jsx";
 import BookRidePage from "./pages/BookRidePage";
+import Toast from "./components/Toast";
 function App() {
   return (
     <BrowserRouter>
@@ -72,6 +73,7 @@ function App() {
           }
         />
       </Routes>
+      <Toast />
     </BrowserRouter>
   );
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -76,6 +77,7 @@ public class DriverService {
     public User submitVehicleDetails(Long driverId, VehicleDetailsRequest request) {
         try {
             logger.debug("Starting submitVehicleDetails for driver ID: {}", driverId);
+            validateVehicleDetailsRequest(request);
 
             User driver = userRepository.findById(driverId)
                     .orElseThrow(() -> new RuntimeException("Driver not found"));
@@ -285,8 +287,53 @@ public class DriverService {
     }
 
     private String generateVehicleCode() {
-        long count = vehicleRepository.count() + 1;
-        return String.format("VH-%04d", count);
+        for (int i = 0; i < 10; i++) {
+            String code = "VH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+            if (vehicleRepository.findByVehicleCode(code).isEmpty()) {
+                return code;
+            }
+        }
+        throw new RuntimeException("Failed to generate unique vehicle code");
+    }
+
+    private void validateVehicleDetailsRequest(VehicleDetailsRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request body is required");
+        }
+        if (request.getVehicleName() == null || request.getVehicleName().trim().isEmpty()) {
+            throw new IllegalArgumentException("vehicleName is required");
+        }
+        if (request.getModel() == null || request.getModel().trim().isEmpty()) {
+            throw new IllegalArgumentException("model is required");
+        }
+        if (request.getManufacturer() == null || request.getManufacturer().trim().isEmpty()) {
+            throw new IllegalArgumentException("manufacturer is required");
+        }
+        if (request.getYear() == null || request.getYear() < 1990
+                || request.getYear() > LocalDateTime.now().getYear() + 1) {
+            throw new IllegalArgumentException("year is invalid");
+        }
+        if (request.getSeats() == null || request.getSeats() < 1 || request.getSeats() > 50) {
+            throw new IllegalArgumentException("seats must be between 1 and 50");
+        }
+        if (request.getPricePerHour() == null || request.getPricePerHour().signum() <= 0) {
+            throw new IllegalArgumentException("pricePerHour must be greater than 0");
+        }
+        if (request.getVehicleTypeEnum() == null) {
+            throw new IllegalArgumentException("Invalid vehicleType: " + request.getVehicleType());
+        }
+        if (request.getFuelTypeEnum() == null) {
+            throw new IllegalArgumentException("Invalid fuelType: " + request.getFuelType());
+        }
+        if (request.getLicenseNumber() == null || request.getLicenseNumber().trim().isEmpty()) {
+            throw new IllegalArgumentException("licenseNumber is required");
+        }
+        if (request.getPhone() == null || request.getPhone().trim().isEmpty()) {
+            throw new IllegalArgumentException("phone is required");
+        }
+        if (request.getAddress() == null || request.getAddress().trim().isEmpty()) {
+            throw new IllegalArgumentException("address is required");
+        }
     }
 
     // ===================== Response Class =====================

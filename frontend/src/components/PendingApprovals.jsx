@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api/api";
 import { FaCheck, FaTimes, FaSpinner } from "react-icons/fa";
+import { showToast } from "./Toast";
 
 export default function PendingApprovals() {
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -49,13 +50,13 @@ export default function PendingApprovals() {
       }
 
       const data = await res.json();
-      alert(data.message || "User approved successfully!");
+      showToast(data.message || "User approved successfully!", "success");
 
       // Refresh the list
       await fetchPendingApprovals();
     } catch (err) {
       console.error("Error approving user:", err);
-      alert(err.message || "Failed to approve user");
+      showToast(err.message || "Failed to approve user", "error");
     } finally {
       setProcessingId(null);
     }
@@ -85,13 +86,13 @@ export default function PendingApprovals() {
       }
 
       const data = await res.json();
-      alert(data.message || "User rejected successfully!");
+      showToast(data.message || "User rejected successfully!", "success");
 
       // Refresh the list
       await fetchPendingApprovals();
     } catch (err) {
       console.error("Error rejecting user:", err);
-      alert(err.message || "Failed to reject user");
+      showToast(err.message || "Failed to reject user", "error");
     } finally {
       setProcessingId(null);
     }

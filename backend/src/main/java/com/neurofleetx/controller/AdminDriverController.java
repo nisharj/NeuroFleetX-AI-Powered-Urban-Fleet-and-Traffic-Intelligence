@@ -2,6 +2,7 @@ package com.neurofleetx.controller;
 
 import com.neurofleetx.model.User;
 import com.neurofleetx.model.Vehicle;
+import com.neurofleetx.repository.BookingRepository;
 import com.neurofleetx.repository.UserRepository;
 import com.neurofleetx.service.DriverService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @RestController
 @RequestMapping("/api/v1/drivers")
@@ -27,6 +30,7 @@ public class AdminDriverController {
 
     private final DriverService driverService;
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
 
     /**
      * Get all drivers pending account approval (Phase 1)
@@ -188,19 +192,20 @@ public class AdminDriverController {
         try {
             logger.info("Phase 2 - Approve for rides: driverId={}", driverId);
 
-            User driver = userRepository.findById(driverId)
-                    .orElseThrow(() -> new RuntimeException("Driver not found"));
+            User driver = userRepository.findByIdWithVehicle(driverId)
+                    .orElseThrow(() -> new IllegalArgumentException("Driver not found"));
 
             if (driver.getRole() != User.Role.DRIVER) {
-                throw new RuntimeException("User is not a driver");
+                throw new IllegalArgumentException("User is not a driver");
             }
 
             if (!Boolean.TRUE.equals(driver.getDetailsSubmitted())) {
-                throw new RuntimeException("Driver has not submitted vehicle details and verification documents");
+                throw new IllegalArgumentException(
+                        "Driver has not submitted vehicle details and verification documents");
             }
 
             if (driver.getVehicle() == null) {
-                throw new RuntimeException("Driver does not have a vehicle registered");
+                throw new IllegalArgumentException("Driver does not have a vehicle registered");
             }
 
             // Set to fully APPROVED status (Phase 2 complete)
@@ -220,6 +225,10 @@ public class AdminDriverController {
             response.put("vehicleStatus", driver.getVehicle().getStatus().name());
 
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid approve-rides request for driverId={}: {}", driverId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             logger.error("Error approving driver for rides: {}", e.getMessage(), e);
 
@@ -279,6 +288,16 @@ public class AdminDriverController {
         driverInfo.put("detailsSubmitted", driver.getDetailsSubmitted());
         driverInfo.put("isActive", driver.getIsActive());
         driverInfo.put("createdAt", driver.getCreatedAt());
+        Long totalRatings = bookingRepository.countDriverRatings(driver.getId());
+        Double avgRating = bookingRepository.findAverageDriverRating(driver.getId());
+        Long completedTrips = bookingRepository.countCompletedRidesByDriver(driver.getId());
+        driverInfo.put("totalDriverRatings", totalRatings != null ? totalRatings : 0L);
+        driverInfo.put(
+                "driverRating",
+                avgRating != null
+                        ? BigDecimal.valueOf(avgRating).setScale(2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO);
+        driverInfo.put("completedTrips", completedTrips != null ? completedTrips : 0L);
 
         if (driver.getVehicle() != null) {
             Map<String, Object> vehicleInfo = new HashMap<>();

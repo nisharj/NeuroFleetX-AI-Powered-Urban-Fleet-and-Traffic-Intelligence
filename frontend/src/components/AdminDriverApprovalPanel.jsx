@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
+import { showToast } from "./Toast";
 
 /**
  * AdminDriverApprovalPanel - Two-Phase Driver Approval System
@@ -12,6 +13,15 @@ export default function AdminDriverApprovalPanel() {
   const [allDrivers, setAllDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("phase1"); // phase1, phase2, all
+  const [confirming, setConfirming] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    action: null,
+    driverId: null,
+    driverName: "",
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     loadDrivers();
@@ -48,15 +58,7 @@ export default function AdminDriverApprovalPanel() {
     setLoading(false);
   };
 
-  const handleApproveAccount = async (driverId, driverName) => {
-    if (
-      !window.confirm(
-        `Approve account for ${driverName}? They will be able to login but not receive rides yet.`,
-      )
-    ) {
-      return;
-    }
-
+  const approveAccount = async (driverId, driverName) => {
     try {
       const res = await apiFetch(
         `/api/v1/drivers/${driverId}/approve-account`,
@@ -66,43 +68,86 @@ export default function AdminDriverApprovalPanel() {
       );
 
       if (res.ok) {
-        alert(`✅ Account approved for ${driverName}. Phase 1 complete.`);
+        showToast(`Account approved for ${driverName}. Phase 1 complete.`, "success");
         loadDrivers();
       } else {
-        alert("Failed to approve account");
+        showToast("Failed to approve account", "error");
       }
     } catch (err) {
       console.error("Error approving account:", err);
-      alert("Error approving account");
+      showToast("Error approving account", "error");
     }
   };
 
-  const handleApproveRides = async (driverId, driverName) => {
-    if (
-      !window.confirm(
-        `Approve ${driverName} for ride eligibility? They will be able to receive ride requests.`,
-      )
-    ) {
-      return;
-    }
-
+  const approveRides = async (driverId, driverName) => {
     try {
       const res = await apiFetch(`/api/v1/drivers/${driverId}/approve-rides`, {
         method: "POST",
       });
 
       if (res.ok) {
-        alert(
-          `✅ Ride eligibility approved for ${driverName}. Phase 2 complete.`,
+        showToast(
+          `Ride eligibility approved for ${driverName}. Phase 2 complete.`,
+          "success",
         );
         loadDrivers();
       } else {
         const errMsg = await res.text();
-        alert(`Failed to approve rides: ${errMsg}`);
+        showToast(`Failed to approve rides: ${errMsg}`, "error");
       }
     } catch (err) {
       console.error("Error approving rides:", err);
-      alert("Error approving rides");
+      showToast("Error approving rides", "error");
+    }
+  };
+
+  const openConfirm = (action, driverId, driverName) => {
+    if (action === "approveAccount") {
+      setConfirmDialog({
+        open: true,
+        action,
+        driverId,
+        driverName,
+        title: "Approve Driver Account",
+        message: `Approve account for ${driverName}? They will be able to login but not receive rides yet.`,
+      });
+      return;
+    }
+
+    setConfirmDialog({
+      open: true,
+      action,
+      driverId,
+      driverName,
+      title: "Approve Ride Eligibility",
+      message: `Approve ${driverName} for ride eligibility? They will be able to receive ride requests.`,
+    });
+  };
+
+  const closeConfirm = (force = false) => {
+    if (confirming && !force) return;
+    setConfirmDialog({
+      open: false,
+      action: null,
+      driverId: null,
+      driverName: "",
+      title: "",
+      message: "",
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDialog.action || !confirmDialog.driverId) return;
+    setConfirming(true);
+    try {
+      if (confirmDialog.action === "approveAccount") {
+        await approveAccount(confirmDialog.driverId, confirmDialog.driverName);
+      } else if (confirmDialog.action === "approveRides") {
+        await approveRides(confirmDialog.driverId, confirmDialog.driverName);
+      }
+    } finally {
+      setConfirming(false);
+      closeConfirm(true);
     }
   };
 
@@ -117,14 +162,14 @@ export default function AdminDriverApprovalPanel() {
       });
 
       if (res.ok) {
-        alert(`❌ Driver ${driverName} rejected.`);
+        showToast(`Driver ${driverName} rejected.`, "success");
         loadDrivers();
       } else {
-        alert("Failed to reject driver");
+        showToast("Failed to reject driver", "error");
       }
     } catch (err) {
       console.error("Error rejecting driver:", err);
-      alert("Error rejecting driver");
+      showToast("Error rejecting driver", "error");
     }
   };
 
@@ -244,7 +289,9 @@ export default function AdminDriverApprovalPanel() {
                   key={driver.id}
                   driver={driver}
                   phase="1"
-                  onApprove={() => handleApproveAccount(driver.id, driver.name)}
+                  onApprove={() =>
+                    openConfirm("approveAccount", driver.id, driver.name)
+                  }
                   onReject={() => handleReject(driver.id, driver.name)}
                 />
               ))}
@@ -288,7 +335,9 @@ export default function AdminDriverApprovalPanel() {
                   key={driver.id}
                   driver={driver}
                   phase="2"
-                  onApprove={() => handleApproveRides(driver.id, driver.name)}
+                  onApprove={() =>
+                    openConfirm("approveRides", driver.id, driver.name)
+                  }
                   onReject={() => handleReject(driver.id, driver.name)}
                 />
               ))}
@@ -311,8 +360,74 @@ export default function AdminDriverApprovalPanel() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
+            <>
+              <div className="grid gap-4 md:hidden">
+                {allDrivers.map((driver) => (
+                  <div
+                    key={driver.id}
+                    className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {driver.name}
+                        </p>
+                        <p className="text-xs text-gray-500">{driver.email}</p>
+                      </div>
+                      <StatusBadge status={driver.approvalStatus} />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600">
+                      <div>
+                        <p className="text-gray-400">Phone</p>
+                        <p className="font-medium text-gray-800">
+                          {driver.phone || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">License</p>
+                        <p className="font-medium text-gray-800">
+                          {driver.licenseNumber || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Rating</p>
+                        {Number(driver.totalDriverRatings || 0) > 0 ? (
+                          <p className="font-semibold text-amber-600">
+                            â˜… {Number(driver.driverRating || 0).toFixed(1)}
+                            <span className="text-gray-400 font-normal">
+                              {" "}
+                              ({driver.totalDriverRatings})
+                            </span>
+                          </p>
+                        ) : (
+                          <p className="text-gray-400">No ratings</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Vehicle</p>
+                        <p className="font-medium text-gray-800">
+                          {driver.vehicle
+                            ? driver.vehicle.name || driver.vehicle.type
+                            : "No vehicle"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {driver.vehicle && (
+                      <div className="mt-3 text-xs text-gray-500">
+                        {driver.vehicle.manufacturer} {driver.vehicle.model} (
+                        {driver.vehicle.year}) | {driver.vehicle.fuelType} |{" "}
+                        {driver.vehicle.seats} seats |{" "}
+                        {driver.vehicle.vehicleNumber || "No plate"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="hidden md:block bg-white rounded-lg shadow-md overflow-x-auto">
+                <table className="min-w-[900px] w-full divide-y divide-gray-200">
                 <thead className="bg-gradient-to-r from-purple-600 to-indigo-600">
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
@@ -326,6 +441,9 @@ export default function AdminDriverApprovalPanel() {
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                      Rating
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
                       Vehicle
@@ -355,6 +473,20 @@ export default function AdminDriverApprovalPanel() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={driver.approvalStatus} />
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {Number(driver.totalDriverRatings || 0) > 0 ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-amber-600">
+                              ★ {Number(driver.driverRating || 0).toFixed(1)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {driver.totalDriverRatings} ratings
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No ratings</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {driver.vehicle ? (
                           <div>
@@ -380,9 +512,37 @@ export default function AdminDriverApprovalPanel() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+                </table>
+              </div>
+            </>
           )}
+        </div>
+      )}
+
+      {confirmDialog.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-gray-200 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {confirmDialog.title}
+            </h3>
+            <p className="text-sm text-gray-700 mb-6">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeConfirm}
+                disabled={confirming}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                disabled={confirming}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {confirming ? "Processing..." : "Approve"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -419,6 +579,20 @@ function DriverCard({ driver, phase, onApprove, onReject }) {
               <p className="text-xs text-gray-500 mb-1">License Number</p>
               <p className="text-sm font-semibold text-gray-800">
                 {driver.licenseNumber || "N/A"}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-500 mb-1">Driver Rating</p>
+              <p className="text-sm font-semibold text-amber-600">
+                {Number(driver.totalDriverRatings || 0) > 0
+                  ? `★ ${Number(driver.driverRating || 0).toFixed(1)}`
+                  : "No ratings"}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-xs text-gray-500 mb-1">Rated Trips</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {driver.totalDriverRatings || 0}
               </p>
             </div>
           </div>

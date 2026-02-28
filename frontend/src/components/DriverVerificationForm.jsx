@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
+import { showToast } from "./Toast";
 
 export default function DriverVerificationForm() {
   const [verification, setVerification] = useState(null);
@@ -78,15 +79,15 @@ export default function DriverVerificationForm() {
 
       if (res.ok) {
         const data = await res.json();
-        alert(data.message || "Verification submitted successfully!");
+        showToast(data.message || "Verification submitted successfully!", "success");
         await fetchVerificationStatus();
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to submit verification");
+        showToast(error.message || "Failed to submit verification", "error");
       }
     } catch (error) {
       console.error("Error submitting verification:", error);
-      alert("Error submitting verification");
+      showToast("Error submitting verification", "error");
     } finally {
       setSubmitting(false);
     }

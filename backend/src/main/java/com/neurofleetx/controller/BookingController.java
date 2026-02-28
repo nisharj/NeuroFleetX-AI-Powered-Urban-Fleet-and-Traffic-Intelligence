@@ -94,9 +94,15 @@ public class BookingController {
     @PostMapping("/bookings/{id}/rate")
     public ResponseEntity<BookingDTO> rateRide(
             @PathVariable Long id,
-            @RequestBody RateRideRequest request) {
+            @RequestBody RateRideRequest request,
+            Authentication authentication) {
 
-        BookingDTO booking = bookingService.rateRide(id, request.getRating(), request.getFeedback());
+        if (authentication == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        String customerEmail = authentication.getName();
+        BookingDTO booking = bookingService.rateRide(id, request.getRating(), request.getFeedback(), customerEmail);
         return ResponseEntity.ok(booking);
     }
 

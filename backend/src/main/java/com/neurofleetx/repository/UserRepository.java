@@ -18,6 +18,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByIdAndIsActiveTrue(Long id);
 
+    @Query("""
+                SELECT u FROM User u
+                LEFT JOIN FETCH u.vehicle
+                WHERE u.id = :id
+            """)
+    Optional<User> findByIdWithVehicle(@Param("id") Long id);
+
     List<User> findByApprovalStatus(User.ApprovalStatus approvalStatus);
 
     List<User> findByRole(User.Role role);

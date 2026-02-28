@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
+import { showToast } from "./Toast";
 import {
   FaUserShield,
   FaCar,
@@ -97,7 +98,7 @@ export default function UserManagement() {
       fetchUsers(activeTab);
     } catch (err) {
       console.error("Error updating user status:", err);
-      alert(`Failed to update user status: ${err.message}`);
+      showToast(`Failed to update user status: ${err.message}`, "error");
     }
   };
 
@@ -121,12 +122,12 @@ export default function UserManagement() {
         throw new Error(errorData.message || "Failed to delete user");
       }
 
-      alert(`User "${userName}" deleted successfully`);
+      showToast(`User "${userName}" deleted successfully`, "success");
       // Refresh the list
       fetchUsers(activeTab);
     } catch (err) {
       console.error("Error deleting user:", err);
-      alert(`Failed to delete user: ${err.message}`);
+      showToast(`Failed to delete user: ${err.message}`, "error");
     }
   };
 

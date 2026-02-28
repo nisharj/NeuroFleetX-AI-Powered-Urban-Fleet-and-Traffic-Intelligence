@@ -1,7 +1,12 @@
 package com.neurofleetx.controller;
 
+import com.neurofleetx.dto.FleetVehicleDTO;
 import com.neurofleetx.dto.MessageResponse;
+import com.neurofleetx.model.Booking;
+import com.neurofleetx.model.User;
 import com.neurofleetx.model.Vehicle;
+import com.neurofleetx.repository.BookingRepository;
+import com.neurofleetx.repository.UserRepository;
 import com.neurofleetx.repository.VehicleRepository;
 import com.neurofleetx.service.VehicleService;
 import jakarta.validation.Valid;
@@ -18,6 +23,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/fleet")
@@ -31,6 +39,12 @@ public class FleetController {
 
     @Autowired
     private VehicleService vehicleService;
+
+    @Autowired
+    private BookingRepository bookingRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Get fleet manager dashboard metrics
@@ -128,7 +142,7 @@ public class FleetController {
             // Fetch vehicles with null check
             List<Vehicle> vehicles = null;
             try {
-                vehicles = vehicleRepository.findAll();
+                vehicles = vehicleRepository.findAllWithCity();
                 logger.info("Successfully fetched {} vehicles from database",
                         vehicles != null ? vehicles.size() : 0);
             } catch (Exception dbException) {
@@ -144,7 +158,11 @@ public class FleetController {
                 return ResponseEntity.ok(Collections.emptyList());
             }
 
-            return ResponseEntity.ok(vehicles);
+            List<FleetVehicleDTO> response = vehicles.stream()
+                    .map(this::toFleetVehicleDTO)
+                    .toList();
+
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             logger.error("Error in getAllFleetVehicles endpoint: {}", e.getMessage(), e);
@@ -166,7 +184,7 @@ public class FleetController {
             return vehicleService.getVehicleById(id)
                     .map(vehicle -> {
                         logger.info("Vehicle found: {}", vehicle.getVehicleCode());
-                        return ResponseEntity.ok(vehicle);
+                        return ResponseEntity.ok(toFleetVehicleDTO(vehicle));
                     })
                     .orElseGet(() -> {
                         logger.warn("Vehicle not found with ID: {}", id);
@@ -221,6 +239,9 @@ public class FleetController {
 
             return ResponseEntity.ok(updatedVehicle);
 
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse(e.getMessage()));
         } catch (RuntimeException e) {
             logger.error("Vehicle not found for update: {}", id);
             return ResponseEntity.notFound().build();
@@ -245,6 +266,9 @@ public class FleetController {
 
             return ResponseEntity.ok(new MessageResponse("Vehicle deleted successfully"));
 
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse(e.getMessage()));
         } catch (RuntimeException e) {
             logger.error("Vehicle not found for deletion: {}", id);
             return ResponseEntity.notFound().build();
@@ -306,5 +330,138 @@ public class FleetController {
 
             return ResponseEntity.ok(defaultStats);
         }
+    }
+
+    /**
+     * Get vehicles that belong to APPROVED drivers (admin/manager approved)
+     */
+    @GetMapping("/vehicles/approved")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FLEET_MANAGER')")
+    public ResponseEntity<?> getApprovedDriverVehicles() {
+        try {
+            logger.info("Fetching approved driver vehicles");
+
+            List<User> approvedDrivers = userRepository.findByRoleAndApprovalStatusWithVehicle(
+                    User.Role.DRIVER,
+                    User.ApprovalStatus.APPROVED);
+
+            List<Long> vehicleIds = approvedDrivers.stream()
+                    .map(User::getVehicle)
+                    .filter(Objects::nonNull)
+                    .map(Vehicle::getId)
+                    .toList();
+
+            if (vehicleIds.isEmpty()) {
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+
+            List<Vehicle> vehicles = vehicleRepository.findByIdInWithCity(vehicleIds);
+
+            List<FleetVehicleDTO> response = vehicles.stream()
+                    .map(this::toFleetVehicleDTO)
+                    .toList();
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error fetching approved driver vehicles: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+    }
+
+    private FleetVehicleDTO toFleetVehicleDTO(Vehicle vehicle) {
+        FleetVehicleDTO dto = new FleetVehicleDTO();
+        dto.setId(vehicle.getId());
+        dto.setVehicleCode(vehicle.getVehicleCode());
+        dto.setVehicleNumber(vehicle.getVehicleNumber());
+        dto.setName(vehicle.getName());
+        dto.setType(vehicle.getType() != null ? vehicle.getType().name() : null);
+        dto.setModel(vehicle.getModel());
+        dto.setYear(vehicle.getYear());
+        dto.setSeats(vehicle.getSeats());
+        dto.setFuelType(vehicle.getFuelType() != null ? vehicle.getFuelType().name() : null);
+        dto.setStatus(vehicle.getStatus() != null ? vehicle.getStatus().name() : null);
+        dto.setCurrentLatitude(vehicle.getCurrentLatitude());
+        dto.setCurrentLongitude(vehicle.getCurrentLongitude());
+        dto.setCurrentCityName(vehicle.getCurrentCity() != null ? vehicle.getCurrentCity().getName() : null);
+        dto.setBatteryLevel(vehicle.getBatteryLevel());
+        dto.setMileage(vehicle.getMileage());
+        dto.setEngineHealth(vehicle.getEngineHealth());
+        dto.setTireHealth(vehicle.getTireHealth());
+        dto.setBrakeHealth(vehicle.getBrakeHealth());
+        dto.setLastMaintenanceDate(vehicle.getLastMaintenanceDate());
+        dto.setNextMaintenanceDate(vehicle.getNextMaintenanceDate());
+        dto.setRating(vehicle.getRating());
+        dto.setTotalRatings(vehicle.getTotalRatings());
+
+        boolean lockedForRide = vehicleService.isVehicleOnRide(vehicle.getId())
+                || vehicle.getStatus() == Vehicle.VehicleStatus.IN_USE;
+        dto.setLockedForRide(lockedForRide);
+
+        List<String> alerts = new ArrayList<>();
+        String healthStatus = "HEALTHY";
+
+        if (vehicle.getStatus() == Vehicle.VehicleStatus.MAINTENANCE) {
+            healthStatus = "UNDER_MAINTENANCE";
+            alerts.add("Vehicle is under maintenance");
+        } else if (vehicle.getStatus() == Vehicle.VehicleStatus.OFFLINE) {
+            healthStatus = "INACTIVE";
+            alerts.add("Vehicle is inactive/offline");
+        } else {
+            if (vehicle.getNextMaintenanceDate() != null
+                    && vehicle.getNextMaintenanceDate().isBefore(LocalDateTime.now().plusDays(7))) {
+                healthStatus = "MAINTENANCE_DUE";
+                alerts.add("Service due within 7 days");
+            }
+            if (vehicle.getEngineHealth() != null && vehicle.getEngineHealth() < 70) {
+                healthStatus = "MAINTENANCE_DUE";
+                alerts.add("Engine health below threshold");
+            }
+            if (vehicle.getTireHealth() != null && vehicle.getTireHealth() < 70) {
+                healthStatus = "MAINTENANCE_DUE";
+                alerts.add("Tire health below threshold");
+            }
+            if (vehicle.getBrakeHealth() != null && vehicle.getBrakeHealth() < 70) {
+                healthStatus = "MAINTENANCE_DUE";
+                alerts.add("Brake health below threshold");
+            }
+        }
+
+        dto.setHealthStatus(healthStatus);
+        dto.setHealthAlerts(alerts);
+
+        List<Booking.BookingStatus> activeRideStatuses = List.of(
+                Booking.BookingStatus.STARTED,
+                Booking.BookingStatus.IN_PROGRESS);
+
+        List<Booking> activeByVehicle = bookingRepository.findByVehicleIdAndStatusInOrderByCreatedAtDesc(
+                vehicle.getId(),
+                activeRideStatuses);
+
+        if (!activeByVehicle.isEmpty()) {
+            Booking booking = activeByVehicle.get(0);
+            User driver = booking.getDriver();
+
+            if (driver != null) {
+                dto.setAssignedDriver(new FleetVehicleDTO.DriverSummary(
+                        driver.getId(),
+                        driver.getName(),
+                        driver.getEmail(),
+                        driver.getPhone()));
+            }
+
+            dto.setCurrentTrip(new FleetVehicleDTO.CurrentTrip(
+                    booking.getId(),
+                    booking.getBookingCode(),
+                    booking.getPickupAddress(),
+                    booking.getDropAddress(),
+                    booking.getUser() != null ? booking.getUser().getId() : null,
+                    booking.getUser() != null ? booking.getUser().getName() : null,
+                    booking.getUser() != null ? booking.getUser().getPhone() : null,
+                    booking.getStartedAt(),
+                    booking.getStatus() != null ? booking.getStatus().name() : null));
+        }
+
+        return dto;
     }
 }

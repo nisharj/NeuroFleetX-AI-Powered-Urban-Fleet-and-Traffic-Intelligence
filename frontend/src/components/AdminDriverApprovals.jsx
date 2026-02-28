@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../api/api";
+import { showToast } from "./Toast";
 
 export default function AdminDriverApprovals() {
   const [verifications, setVerifications] = useState([]);
@@ -37,16 +38,16 @@ export default function AdminDriverApprovals() {
 
       if (res.ok) {
         const data = await res.json();
-        alert(data.message || "Driver approved successfully!");
+        showToast(data.message || "Driver approved successfully!", "success");
         await fetchVerifications();
         setSelectedVerification(null);
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to approve driver");
+        showToast(error.message || "Failed to approve driver", "error");
       }
     } catch (error) {
       console.error("Error approving driver:", error);
-      alert("Error approving driver");
+      showToast("Error approving driver", "error");
     }
   };
 
@@ -65,16 +66,16 @@ export default function AdminDriverApprovals() {
 
       if (res.ok) {
         const data = await res.json();
-        alert(data.message || "Driver rejected");
+        showToast(data.message || "Driver rejected", "success");
         await fetchVerifications();
         setSelectedVerification(null);
       } else {
         const error = await res.json();
-        alert(error.message || "Failed to reject driver");
+        showToast(error.message || "Failed to reject driver", "error");
       }
     } catch (error) {
       console.error("Error rejecting driver:", error);
-      alert("Error rejecting driver");
+      showToast("Error rejecting driver", "error");
     }
   };
 

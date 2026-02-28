@@ -41,6 +41,8 @@ public class BookingDTO {
     private LocalDateTime cancelledAt;
     private String cancelledBy;
     private String cancellationReason;
+    private Integer customerRating;
+    private String customerFeedback;
 
     // Latency in milliseconds between broadcast and acceptance
     private Long acceptLatencyMs;

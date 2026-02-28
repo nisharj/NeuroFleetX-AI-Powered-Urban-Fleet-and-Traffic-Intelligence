@@ -133,6 +133,19 @@ export const bookingService = {
     }
   },
 
+  rateRide: async (bookingId, rating, feedback = "") => {
+    try {
+      const response = await api.post(`/bookings/${bookingId}/rate`, {
+        rating,
+        feedback,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error rating ride:", error);
+      throw error;
+    }
+  },
+
   // Admin
   getAllBookings: async () => {
     try {

@@ -23,6 +23,7 @@ import {
   FaUsers,
   FaRoute,
   FaBroadcastTower,
+  FaStar,
 } from "react-icons/fa";
 
 import DriverPendingRides from "../DriverPendingRides";
@@ -44,12 +45,17 @@ export default function DriverDashboard() {
   // ================= LOAD METRICS =================
   const loadMetrics = useCallback(async () => {
     try {
-      // TODO: Replace with actual backend endpoint when available
-      // For now using mock data
+      const res = await apiFetch("/api/user/me");
+      if (!res || !res.ok) {
+        throw new Error("Failed to load metrics");
+      }
+      const data = await res.json();
       setMetrics({
-        assignedTrips: 0,
-        completedTrips: 0,
-        vehicleStatus: "Active",
+        assignedTrips: Number(data.completedTrips || 0),
+        completedTrips: Number(data.completedTrips || 0),
+        vehicleStatus: data?.vehicle?.status || "OFFLINE",
+        driverRating: Number(data.driverRating || 0),
+        totalDriverRatings: Number(data.totalDriverRatings || 0),
       });
       setMetricsError("");
     } catch {
@@ -174,10 +180,14 @@ export default function DriverDashboard() {
                 icon={<FaCheckCircle />}
               />
               <MetricCard
-                title="Vehicle Status"
-                value={metrics.vehicleStatus}
+                title="Customer Rating"
+                value={
+                  metrics.totalDriverRatings > 0
+                    ? `${metrics.driverRating.toFixed(1)} (${metrics.totalDriverRatings})`
+                    : "No ratings"
+                }
                 color="bg-purple-600"
-                icon={<FaCarSide />}
+                icon={<FaStar />}
               />
             </div>
           ) : null}

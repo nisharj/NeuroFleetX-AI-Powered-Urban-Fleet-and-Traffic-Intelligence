@@ -26,6 +26,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findByVehicleId(Long vehicleId);
 
+    List<Booking> findByVehicleIdAndStatusInOrderByCreatedAtDesc(
+            Long vehicleId,
+            List<BookingStatus> statuses);
+
+    boolean existsByVehicleIdAndStatusIn(Long vehicleId, List<BookingStatus> statuses);
+
     List<Booking> findByStatus(BookingStatus status);
 
     @Query("""
@@ -155,5 +161,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                 AND b.pickupTime <= :cutoff
             """)
     List<Booking> findBookingsToExpire(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query("""
+                SELECT COUNT(b) FROM Booking b
+                WHERE b.driver.id = :driverId
+                AND b.status = 'COMPLETED'
+            """)
+    Long countCompletedRidesByDriver(@Param("driverId") Long driverId);
+
+    @Query("""
+                SELECT AVG(b.customerRating) FROM Booking b
+                WHERE b.driver.id = :driverId
+                AND b.status = 'COMPLETED'
+                AND b.customerRating IS NOT NULL
+            """)
+    Double findAverageDriverRating(@Param("driverId") Long driverId);
+
+    @Query("""
+                SELECT COUNT(b) FROM Booking b
+                WHERE b.driver.id = :driverId
+                AND b.customerRating IS NOT NULL
+            """)
+    Long countDriverRatings(@Param("driverId") Long driverId);
 
 }

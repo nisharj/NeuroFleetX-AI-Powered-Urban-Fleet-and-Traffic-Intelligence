@@ -1,3 +1,5 @@
+import { showToast } from "../components/Toast";
+
 const BASE_URL = "http://localhost:8080";
 
 export async function apiFetch(endpoint, options = {}) {
@@ -14,7 +16,7 @@ export async function apiFetch(endpoint, options = {}) {
 
   if (res.status === 401) {
     localStorage.clear();
-    alert("Session expired. Please login again.");
+    showToast("Session expired. Please login again.", "warning");
     window.location.href = "/";
     return;
   }

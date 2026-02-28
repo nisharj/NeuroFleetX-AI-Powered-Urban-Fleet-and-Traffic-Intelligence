@@ -22,6 +22,7 @@ import {
   FaRoad,
   FaOilCan,
 } from "react-icons/fa";
+import VehicleHealthMonitoringSystem from "./VehicleHealthMonitoringSystem";
 
 const STATUS_CONFIG = {
   AVAILABLE: {
@@ -105,6 +106,7 @@ function formatType(type) {
 
 export default function VehicleSimulation({ compact = false }) {
   const [vehicles, setVehicles] = useState([]);
+  const [healthTimeline, setHealthTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // grid | list
@@ -115,10 +117,25 @@ export default function VehicleSimulation({ compact = false }) {
   const fetchVehicles = useCallback(async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
-      const res = await apiFetch("/api/vehicles");
+      const res = await apiFetch("/api/fleet/vehicles");
       if (res && res.ok) {
         const data = await res.json();
         setVehicles(data);
+        const avgScore = data.length
+          ? Math.round(
+              data.reduce((sum, v) => {
+                const battery = v.batteryLevel ?? 100;
+                const engine = v.engineHealth ?? 100;
+                const tire = v.tireHealth ?? 100;
+                const brake = v.brakeHealth ?? 100;
+                const score = battery * 0.35 + engine * 0.35 + tire * 0.15 + brake * 0.15;
+                return sum + score;
+              }, 0) / data.length,
+            )
+          : 100;
+
+        const timeLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        setHealthTimeline((prev) => [...prev.slice(-11), { time: timeLabel, avgScore }]);
         setLastUpdated(new Date());
         setError("");
       } else {
@@ -288,6 +305,10 @@ export default function VehicleSimulation({ compact = false }) {
         </div>
       )}
 
+      {!compact && (
+        <VehicleHealthMonitoringSystem vehicles={vehicles} timeline={healthTimeline} />
+      )}
+
       {/* VEHICLE CARDS */}
       {filteredVehicles.length === 0 ? (
         <div className="text-center py-10">
@@ -419,10 +440,10 @@ function VehicleCard({ vehicle: v, compact }) {
       </div>
 
       {/* Card Footer */}
-      <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+          <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
         <span className="flex items-center gap-1">
           <FaMapMarkerAlt className="text-[10px]" />
-          {v.currentCity?.name || "Unknown"}
+          {v.currentCityName || v.currentCity?.name || "Unknown"}
         </span>
         <span className="flex items-center gap-1">
           <FaTachometerAlt className="text-[10px]" />

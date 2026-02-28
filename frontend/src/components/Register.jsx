@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { showToast } from "./Toast";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -81,7 +82,7 @@ export default function Register() {
       // Registration successful
       const data = await response.json();
       // Show success message and redirect to login
-      alert(data.message || "Registration successful! Please log in.");
+      showToast(data.message || "Registration successful! Please log in.", "success");
       navigate("/");
     } catch (err) {
       setApiError(err.message);

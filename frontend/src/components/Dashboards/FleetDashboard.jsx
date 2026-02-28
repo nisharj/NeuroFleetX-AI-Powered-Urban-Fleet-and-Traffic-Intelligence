@@ -13,6 +13,7 @@ import {
   FaChartBar,
   FaSatelliteDish,
   FaIdCardAlt,
+  FaCheckCircle,
 } from "react-icons/fa";
 
 export default function FleetDashboard() {
@@ -24,6 +25,7 @@ export default function FleetDashboard() {
     vehiclesInUse: 0,
     vehiclesUnderMaintenance: 0,
   });
+  const [approvedVehicles, setApprovedVehicles] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,9 +33,12 @@ export default function FleetDashboard() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await apiFetch("/api/fleet/metrics");
+        const [metricsRes, vehiclesRes] = await Promise.all([
+          apiFetch("/api/fleet/metrics"),
+          apiFetch("/api/fleet/vehicles/approved"),
+        ]);
 
-        if (!res || !res.ok) {
+        if (!metricsRes || !metricsRes.ok) {
           // Endpoint doesn't exist yet, use default values
           console.warn("Fleet metrics endpoint not available, using defaults");
           setMetrics({
@@ -41,12 +46,20 @@ export default function FleetDashboard() {
             vehiclesInUse: 0,
             vehiclesUnderMaintenance: 0,
           });
-          setLoading(false);
-          return;
+        } else {
+          const data = await metricsRes.json();
+          setMetrics(data);
         }
 
-        const data = await res.json();
-        setMetrics(data);
+        if (vehiclesRes && vehiclesRes.ok) {
+          const vehiclesData = await vehiclesRes.json();
+          const list = Array.isArray(vehiclesData) ? vehiclesData : [];
+          const eligible = list.filter((v) => v.status === "AVAILABLE");
+          setApprovedVehicles(eligible);
+          setError("");
+        } else {
+          setApprovedVehicles([]);
+        }
       } catch (err) {
         console.warn("Failed to load fleet metrics, using defaults:", err);
         // Use default values instead of showing error
@@ -55,6 +68,8 @@ export default function FleetDashboard() {
           vehiclesInUse: 0,
           vehiclesUnderMaintenance: 0,
         });
+        setApprovedVehicles([]);
+        setError("Failed to load approved vehicles");
       } finally {
         setLoading(false);
       }
@@ -168,6 +183,64 @@ export default function FleetDashboard() {
                 Live monitoring of all registered vehicles
               </p>
             </div>
+          </div>
+
+          <div className="mt-8 bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FaCheckCircle className="text-green-600" />
+                Approved Vehicles
+              </h3>
+              <span className="text-sm text-gray-500">
+                {approvedVehicles.length} ready for assignment
+              </span>
+            </div>
+
+            {approvedVehicles.length === 0 ? (
+              <p className="px-6 py-6 text-gray-500 text-sm">
+                No approved vehicles found right now.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="text-left px-6 py-3 font-semibold">Vehicle</th>
+                      <th className="text-left px-6 py-3 font-semibold">Type</th>
+                      <th className="text-left px-6 py-3 font-semibold">Health</th>
+                      <th className="text-left px-6 py-3 font-semibold">Battery</th>
+                      <th className="text-left px-6 py-3 font-semibold">Location</th>
+                      <th className="text-left px-6 py-3 font-semibold">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvedVehicles.slice(0, 12).map((v) => (
+                      <tr key={v.id} className="border-t border-gray-100">
+                        <td className="px-6 py-3">
+                          <p className="font-medium text-gray-900">
+                            {v.vehicleNumber || v.vehicleCode || v.name}
+                          </p>
+                          <p className="text-xs text-gray-500">{v.vehicleCode}</p>
+                        </td>
+                        <td className="px-6 py-3 text-gray-700">{v.type || "N/A"}</td>
+                        <td className="px-6 py-3">
+                          <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                            {v.healthStatus || "HEALTHY"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-gray-700">{v.batteryLevel ?? "--"}%</td>
+                        <td className="px-6 py-3 text-gray-700">
+                          {v.currentCityName || "Unknown"}
+                        </td>
+                        <td className="px-6 py-3 text-gray-700">
+                          {v.rating != null ? Number(v.rating).toFixed(1) : "0.0"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </>
       )}

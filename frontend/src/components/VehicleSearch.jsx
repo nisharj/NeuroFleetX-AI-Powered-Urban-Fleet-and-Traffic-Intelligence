@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { showToast } from './Toast';
 
 function VehicleSearch({ user }) {
   const [filters, setFilters] = useState({
@@ -61,7 +62,7 @@ function VehicleSearch({ user }) {
 
   const confirmBooking = () => {
     // Simulate booking
-    alert(`Booking confirmed for ${selectedVehicle.name}!`);
+    showToast(`Booking confirmed for ${selectedVehicle.name}!`, 'success');
     setShowBookingModal(false);
     setSelectedVehicle(null);
   };

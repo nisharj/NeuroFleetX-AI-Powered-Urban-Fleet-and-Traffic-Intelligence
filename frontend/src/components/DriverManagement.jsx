@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { showToast } from './Toast';
 
 function DriverManagement() {
   const [drivers, setDrivers] = useState([]);
@@ -35,7 +36,7 @@ function DriverManagement() {
       // Refresh data
       await fetchData();
     } catch (error) {
-      alert('Failed to approve driver: ' + (error.response?.data?.message || error.message));
+      showToast('Failed to approve driver: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setProcessing(null);
     }
@@ -50,7 +51,7 @@ function DriverManagement() {
       // Refresh data
       await fetchData();
     } catch (error) {
-      alert('Failed to reject driver: ' + (error.response?.data?.message || error.message));
+      showToast('Failed to reject driver: ' + (error.response?.data?.message || error.message), 'error');
     } finally {
       setProcessing(null);
     }

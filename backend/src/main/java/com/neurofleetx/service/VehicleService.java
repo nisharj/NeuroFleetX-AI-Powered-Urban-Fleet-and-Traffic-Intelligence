@@ -1,7 +1,9 @@
 package com.neurofleetx.service;
 
 import com.neurofleetx.model.City;
+import com.neurofleetx.model.Booking;
 import com.neurofleetx.model.Vehicle;
+import com.neurofleetx.repository.BookingRepository;
 import com.neurofleetx.repository.CityRepository;
 import com.neurofleetx.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
@@ -17,10 +19,15 @@ public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
     private final CityRepository cityRepository;
+    private final BookingRepository bookingRepository;
 
-    public VehicleService(VehicleRepository vehicleRepository, CityRepository cityRepository) {
+    public VehicleService(
+            VehicleRepository vehicleRepository,
+            CityRepository cityRepository,
+            BookingRepository bookingRepository) {
         this.vehicleRepository = vehicleRepository;
         this.cityRepository = cityRepository;
+        this.bookingRepository = bookingRepository;
     }
 
 
@@ -62,10 +69,14 @@ public class VehicleService {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found with id: " + id));
 
+        assertVehicleEditable(vehicle);
+
         // Update fields
         vehicle.setName(vehicleDetails.getName());
         vehicle.setType(vehicleDetails.getType());
-        vehicle.setStatus(vehicleDetails.getStatus());
+        if (vehicleDetails.getStatus() != null) {
+            vehicle.setStatus(vehicleDetails.getStatus());
+        }
         vehicle.setBatteryLevel(vehicleDetails.getBatteryLevel());
         vehicle.setCurrentLatitude(vehicleDetails.getCurrentLatitude());
         vehicle.setCurrentLongitude(vehicleDetails.getCurrentLongitude());
@@ -103,6 +114,8 @@ public class VehicleService {
     public void deleteVehicle(Long id) {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found with id: " + id));
+
+        assertVehicleEditable(vehicle);
         vehicleRepository.delete(vehicle);
     }
 
@@ -147,6 +160,8 @@ public class VehicleService {
     public Vehicle updateVehicleStatus(Long id, Vehicle.VehicleStatus status) {
         Vehicle vehicle = vehicleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Vehicle not found with id: " + id));
+
+        assertVehicleEditable(vehicle);
         vehicle.setStatus(status);
         return vehicleRepository.save(vehicle);
     }
@@ -169,5 +184,22 @@ public class VehicleService {
         }
         
         return vehicleRepository.save(vehicle);
+    }
+
+    public boolean isVehicleOnRide(Long vehicleId) {
+        return bookingRepository.existsByVehicleIdAndStatusIn(
+                vehicleId,
+                List.of(Booking.BookingStatus.STARTED, Booking.BookingStatus.IN_PROGRESS));
+    }
+
+    private void assertVehicleEditable(Vehicle vehicle) {
+        if (vehicle == null || vehicle.getId() == null) {
+            return;
+        }
+
+        if (isVehicleOnRide(vehicle.getId()) || vehicle.getStatus() == Vehicle.VehicleStatus.IN_USE) {
+            throw new IllegalStateException(
+                    "Vehicle is currently on an active ride and cannot be edited, reassigned, or removed");
+        }
     }
 }

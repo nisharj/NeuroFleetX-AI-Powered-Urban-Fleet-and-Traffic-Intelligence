@@ -35,7 +35,7 @@ function CustomerDashboard({ user, onLogout }) {
       }
 
       // ✅ Correct backend API
-      const res = await api.get("/v1/bookings/user");
+      const res = await api.get("/bookings/user");
       const bookings = Array.isArray(res.data) ? res.data : [];
 
       // ✅ recent bookings
@@ -69,9 +69,10 @@ function CustomerDashboard({ user, onLogout }) {
   useEffect(() => {
     loadDashboard();
     setupWebSocket();
+    const ws = wsRef.current;
 
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      if (ws) ws.close();
     };
   }, [loadDashboard, setupWebSocket]);
 
@@ -101,7 +102,7 @@ function CustomerDashboard({ user, onLogout }) {
           {/* Book Ride Button */}
           <button
             className="btn btn-primary"
-            onClick={() => navigate("/book-ride")}
+            onClick={() => navigate("/customer/book")}
           >
             <FaPlus style={{ marginRight: "8px" }} />
             Book Ride

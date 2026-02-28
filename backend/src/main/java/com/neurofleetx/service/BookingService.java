@@ -574,6 +574,8 @@ public class BookingService {
                 booking.getCancelledAt(),
                 booking.getCancelledBy(),
                 booking.getCancellationReason(),
+                booking.getCustomerRating(),
+                booking.getCustomerFeedback(),
 
                 (booking.getBroadcastedAt() != null && booking.getAcceptedAt() != null)
                         ? Duration.between(booking.getBroadcastedAt(), booking.getAcceptedAt()).toMillis()
@@ -613,10 +615,27 @@ public class BookingService {
     // =========================
 
     @Transactional
-    public BookingDTO rateRide(Long bookingId, Integer rating, String feedback) {
+    public BookingDTO rateRide(Long bookingId, Integer rating, String feedback, String customerEmail) {
+
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 5");
+        }
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getUser() == null || booking.getUser().getEmail() == null
+                || !booking.getUser().getEmail().equalsIgnoreCase(customerEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only rate your own rides");
+        }
+
+        if (booking.getStatus() != Booking.BookingStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only completed rides can be rated");
+        }
+
+        if (booking.getDriver() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ride has no assigned driver to rate");
+        }
 
         booking.setCustomerRating(rating);
         booking.setCustomerFeedback(feedback);

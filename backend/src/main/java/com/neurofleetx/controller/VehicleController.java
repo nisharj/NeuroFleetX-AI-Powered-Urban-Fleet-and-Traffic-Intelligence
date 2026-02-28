@@ -55,6 +55,9 @@ public class VehicleController {
         try {
             Vehicle updatedVehicle = vehicleService.updateVehicle(id, vehicleDetails);
             return ResponseEntity.ok(updatedVehicle);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse("Error: " + e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -69,6 +72,9 @@ public class VehicleController {
         try {
             vehicleService.deleteVehicle(id);
             return ResponseEntity.ok(new MessageResponse("Vehicle deleted successfully"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse("Error: " + e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
@@ -129,6 +135,9 @@ public class VehicleController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: Invalid status"));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(409)
+                    .body(new MessageResponse("Error: " + e.getMessage()));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }

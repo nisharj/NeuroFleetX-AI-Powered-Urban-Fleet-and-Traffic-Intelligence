@@ -29,6 +29,7 @@ export default function AdminDashboard() {
     activeFleets: 0,
     todayBookings: 0,
   });
+  const [approvedVehicles, setApprovedVehicles] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,7 +37,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await apiFetch("/api/admin/metrics");
+        const [res, vehiclesRes] = await Promise.all([
+          apiFetch("/api/admin/metrics"),
+          apiFetch("/api/fleet/vehicles/approved"),
+        ]);
 
         if (!res || !res.ok) {
           // Endpoint doesn't exist yet, use default values
@@ -47,12 +51,19 @@ export default function AdminDashboard() {
             activeFleets: 0,
             todayBookings: 0,
           });
-          setLoading(false);
-          return;
+        } else {
+          const data = await res.json();
+          setMetrics(data);
         }
 
-        const data = await res.json();
-        setMetrics(data);
+        if (vehiclesRes && vehiclesRes.ok) {
+          const vehiclesData = await vehiclesRes.json();
+          const list = Array.isArray(vehiclesData) ? vehiclesData : [];
+          const eligible = list.filter((v) => v.status === "AVAILABLE");
+          setApprovedVehicles(eligible);
+        } else {
+          setApprovedVehicles([]);
+        }
       } catch (err) {
         console.warn("Failed to load admin metrics, using defaults:", err);
         // Use default values instead of showing error
@@ -62,6 +73,7 @@ export default function AdminDashboard() {
           activeFleets: 0,
           todayBookings: 0,
         });
+        setApprovedVehicles([]);
       } finally {
         setLoading(false);
       }
@@ -194,10 +206,29 @@ export default function AdminDashboard() {
               className="cursor-pointer bg-indigo-600 text-white p-6 rounded-lg shadow hover:scale-105 transition"
             >
               <FaTruck className="text-3xl mb-3" />
-              <h3 className="text-lg font-semibold">Fleet Vehicles</h3>
+              <h3 className="text-lg font-semibold">Approved Vehicles</h3>
               <p className="text-sm opacity-90">
-                Manage and monitor fleet vehicles
+                {approvedVehicles.length} ready for rides
               </p>
+              <div className="mt-3 space-y-1 text-sm text-white/90">
+                {approvedVehicles.length === 0 ? (
+                  <p>No approved vehicles right now.</p>
+                ) : (
+                  approvedVehicles.slice(0, 4).map((v) => (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between rounded bg-white/10 px-3 py-1"
+                    >
+                      <span className="font-medium">
+                        {v.vehicleNumber || v.vehicleCode || v.name}
+                      </span>
+                      <span className="text-xs uppercase tracking-wide">
+                        {v.type || "N/A"}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { showToast } from "../components/Toast";
 
 function Register({ onRegister }) {
   const [formData, setFormData] = useState({
@@ -63,7 +64,7 @@ function Register({ onRegister }) {
       }
 
       // Show success message and redirect to login
-      alert(data.message);
+      showToast(data.message || "Registration successful! Please log in.", "success");
 
       // We don't auto-login after register because of potential approval requirement
       // Instead, redirect to login page

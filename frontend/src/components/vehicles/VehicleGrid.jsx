@@ -8,6 +8,7 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [healthFilter, setHealthFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
 
   const fetchVehicles = async () => {
@@ -36,15 +37,15 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
 
   const filteredVehicles = vehicles.filter((v) => {
     const statusMatch = statusFilter === "ALL" || v.status === statusFilter;
+    const healthMatch = healthFilter === "ALL" || v.healthStatus === healthFilter;
 
     const typeMatch =
       typeFilter === "ALL" || v.type?.toUpperCase() === typeFilter;
 
-    const searchMatch = v.vehicleNumber
-      .toLowerCase()
-      .includes(search.toLowerCase());
+    const haystack = `${v.vehicleNumber || ""} ${v.vehicleCode || ""} ${v.name || ""}`.toLowerCase();
+    const searchMatch = haystack.includes(search.toLowerCase());
 
-    return statusMatch && typeMatch && searchMatch;
+    return statusMatch && healthMatch && typeMatch && searchMatch;
   });
 
   if (loading) {
@@ -62,8 +63,22 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
         >
           <option value="ALL">All Status</option>
           <option value="AVAILABLE">Available</option>
+          <option value="BOOKED">Booked</option>
           <option value="IN_USE">In Use</option>
           <option value="MAINTENANCE">Maintenance</option>
+          <option value="OFFLINE">Offline</option>
+        </select>
+
+        <select
+          value={healthFilter}
+          onChange={(e) => setHealthFilter(e.target.value)}
+          className="border rounded px-3 py-2 text-sm"
+        >
+          <option value="ALL">All Health</option>
+          <option value="HEALTHY">Healthy</option>
+          <option value="MAINTENANCE_DUE">Maintenance Due</option>
+          <option value="UNDER_MAINTENANCE">Under Maintenance</option>
+          <option value="INACTIVE">Inactive</option>
         </select>
 
         <select
@@ -72,14 +87,16 @@ export default function VehicleGrid({ onEdit, onDelete, refresh }) {
           className="border rounded px-3 py-2 text-sm"
         >
           <option value="ALL">All Types</option>
-          <option value="EV">EV</option>
-          <option value="DIESEL">Diesel</option>
-          <option value="HYBRID">Hybrid</option>
+          <option value="ELECTRICAL_VEHICLE">Electrical Vehicle</option>
+          <option value="SEDAN">Sedan</option>
+          <option value="SUV">SUV</option>
+          <option value="AUTO">Auto</option>
+          <option value="BIKE">Bike</option>
         </select>
 
         <input
           type="text"
-          placeholder="Search by vehicle number..."
+          placeholder="Search by number/code/name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="border rounded px-3 py-2 text-sm w-64"

@@ -24,6 +24,12 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
 
     List<Vehicle> findByCurrentCity_Name(String cityName);
 
+    @Query("SELECT v FROM Vehicle v LEFT JOIN FETCH v.currentCity")
+    List<Vehicle> findAllWithCity();
+
+    @Query("SELECT v FROM Vehicle v LEFT JOIN FETCH v.currentCity WHERE v.id IN :ids")
+    List<Vehicle> findByIdInWithCity(@Param("ids") List<Long> ids);
+
     /**
      * ✅ Find vehicles that are AVAILABLE and not already booked in the given time range.
      *

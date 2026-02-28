@@ -53,6 +53,10 @@ public class DriverController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid vehicle details payload: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             logger.error("Error submitting vehicle details: {}", e.getMessage(), e);
 
